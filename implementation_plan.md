@@ -1,6 +1,8 @@
 # Plan de Implementación: Clinicalyx Opencore & SaaS Enterprise
 
-Este documento establece la estrategia de arquitectura para el modelo de negocio **Opencore**, el mapa de características (Core vs. Enterprise/SaaS), el flujo de Git profesional y la metodología TDD para el proyecto **Clinicalyx**.
+Este documento establece la estrategia de arquitectura para el modelo de negocio **Opencore**, el mapa de características (Core vs. Enterprise/SaaS), ejemplos técnicos de inyección de dependencias, el flujo de Git profesional y la metodología TDD para el proyecto **Clinicalyx**.
+
+---
 
 ## Estrategia de Repositorio: ¿Uno o Dos Proyectos?
 
@@ -13,10 +15,89 @@ graph TD
     D -->|Implementa| E[Stripe, WhatsApp API, Facturación Electrónica]
 ```
 
-### ¿Por qué este enfoque?
-1. **Seguridad Física del Código:** No hay riesgo de que tu código propietario de facturación o pasarelas de pago se filtre por error al repositorio público de GitHub.
-2. **Poder de la Arquitectura Hexagonal:** El repositorio público `clinicalyx-core` define los **Ports (interfaces)** para los módulos de especialidad y servicios externos. La versión premium `clinicalyx-saas` simplemente importa este Core y le inyecta sus propios **Adapters (adaptadores)** de pago en el arranque (`main.go`).
-3. **Portafolio Senior:** Demuestra un dominio absoluto de los principios **SOLID**, la inversión de dependencias y el desacoplamiento de capas.
+### Ejemplo Conceptual en Go (Cómo se inyecta la lógica Premium)
+
+#### 1. En el repositorio público (`clinicalyx-core`)
+Definimos los contratos (Puertos) de salida para los servicios que pueden tener versiones comunitarias básicas o versiones premium complejas.
+
+```go
+// File: clinicalyx-core/internal/ports/outbound/payment.go
+package outbound
+
+// PaymentGateway define el puerto de salida para procesar cobros
+type PaymentGateway interface {
+    ProcessPayment(amount float64, currency string) (transactionID string, err error)
+}
+```
+
+El Core consume este puerto en su lógica de negocio (Casos de Uso) sin saber cómo está implementado físicamente:
+
+```go
+// File: clinicalyx-core/internal/usecases/payment_usecase.go
+package usecases
+
+import "clinicalyx/internal/ports/outbound"
+
+type ProcessPaymentUseCase struct {
+    gateway outbound.PaymentGateway // Dependencia abstracta (Port)
+}
+
+func NewProcessPaymentUseCase(g outbound.PaymentGateway) *ProcessPaymentUseCase {
+    return &ProcessPaymentUseCase{gateway: g}
+}
+
+func (uc *ProcessPaymentUseCase) Execute(amount float64) (string, error) {
+    // Lógica del Core: validaciones de saldo, registrar en libro diario, etc.
+    return uc.gateway.ProcessPayment(amount, "USD")
+}
+```
+
+#### 2. En el repositorio privado (`clinicalyx-saas` o extensiones premium)
+Implementamos el adaptador real utilizando un servicio de pago premium como Stripe:
+
+```go
+// File: clinicalyx-premium/adapters/stripe_adapter.go
+package adapters
+
+import "github.com/stripe/stripe-go/v72"
+
+type StripeAdapter struct {
+    apiKey string
+}
+
+func NewStripeAdapter(key string) *StripeAdapter {
+    return &StripeAdapter{apiKey: key}
+}
+
+// Implementación del método de la interfaz definida en el Core público
+func (s *StripeAdapter) ProcessPayment(amount float64, currency string) (string, error) {
+    // Lógica privada premium para llamar a las APIs de Stripe
+    return "stripe_txn_ok_12345", nil
+}
+```
+
+#### 3. En el arranque de la aplicación SaaS
+En el punto de entrada de la aplicación SaaS, importamos el Core público e inyectamos el adaptador privado:
+
+```go
+// File: clinicalyx-saas/cmd/api/main.go
+package main
+
+import (
+    "github.com/carlos/clinicalyx-core/internal/usecases"
+    "github.com/carlos/clinicalyx-saas/adapters"
+)
+
+func main() {
+    // 1. Inicializar adaptador premium (privado)
+    stripeGateway := adapters.NewStripeAdapter("sk_live_xxxx")
+    
+    // 2. Inyectar adaptador privado en el caso de uso del Core público
+    processPaymentUC := usecases.NewProcessPaymentUseCase(stripeGateway)
+    
+    // 3. Arrancar servidor web y endpoints...
+}
+```
 
 ---
 
