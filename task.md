@@ -7,15 +7,16 @@
 - [x] Guardar y sincronizar el plan de implementación en la raíz del nuevo directorio
 
 ## Estructura del Backend (Go)
-- [ ] Crear la rama `feat/setup-backend`
-- [ ] Inicializar el módulo de Go (`go mod init clinicalyx/backend`)
-- [ ] Instalar dependencias de testing de Go (si aplican)
-- [ ] Crear la estructura de carpetas de Arquitectura Hexagonal:
+- [x] Crear la rama `feat/setup-backend`
+- [x] Inicializar el módulo de Go (`go mod init clinicalyx/backend`)
+- [x] Instalar dependencias iniciales de configuración (`godotenv`, `envconfig`)
+- [x] Crear la estructura de carpetas de Arquitectura Hexagonal:
   - `backend/cmd/api/`
-  - `backend/internal/domain/`
-  - `backend/internal/ports/`
-  - `backend/internal/usecases/`
+  - `backend/internal/core/domain/`
+  - `backend/internal/core/ports/`
+  - `backend/internal/core/usecases/`
   - `backend/internal/adapters/`
+- [x] Crear cargador de configuración seguro en `internal/config/config.go` e `.env.example`
 
 ## Módulo Pacientes - Core (TDD)
 - [ ] Crear la rama `feat/patient-core`

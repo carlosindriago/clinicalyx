@@ -27,8 +27,8 @@ El proyecto se monetiza bajo un esquema de **Núcleo Abierto (Opencore)**:
 3. **Enterprise Edition (Módulos Cerrados):** Clínicas grandes y SaaS consumen módulos premium licenciados (facturación electrónica legal, recordatorios automáticos por WhatsApp API, dashboards de analítica de negocio).
 
 ### ¿Cómo estamos innovando?
-* **Arquitectura de Ficha Clínica Inyectable:** En lugar de reescribir tablas sql para cada especialidad, usamos PostgreSQL con columnas JSONB dinámicas y esquemas de validación inyectados en tiempo de ejecución, permitiendo que Clinicalyx se adapte a cualquier especialidad médica en minutos sin alterar el núcleo físico de la base de datos.
-* **Ingeniería Enterprise desde el Día 1:** Usamos **Arquitectura Hexagonal en Go** y **TDD estricto**. Esto no es el típico proyecto web "juguete" con Laravel acoplado o código espagueti. Es una infraestructura robusta de nivel bancario, diseñada para durar y escalar.
+* **Arquitectura de Ficha Clínica Inyectable (JSONB Mitigado):** Diseñamos un sistema híbrido. En lugar de reescribir tablas SQL para cada especialidad, las consultas analíticas e indexables (ej. diagnósticos CIE-10, alergias, signos vitales) se almacenan en tablas relacionales estrictas. Usamos columnas JSONB dinámicas únicamente en la capa de presentación para los detalles clínicos específicos de cada especialidad (ej. el estado visual de las piezas de un odontograma), garantizando rendimiento analítico y flexibilidad extrema sin comprometer el tipado fuerte en Go.
+* **Ingeniería Enterprise desde el Día 1:** Usamos **Arquitectura Hexagonal en Go** y **TDD pragmático**. Esto no es el típico proyecto web "juguete" con Laravel acoplado o código espagueti. Es una infraestructura robusta de nivel bancario, diseñada para durar y escalar.
 
 ### Proyecciones a Futuro
 * **Inteligencia Artificial Clínica (Fase 2):** Copiloto de dictado por voz que transcribe y resume las notas del médico directamente a la historia clínica en formato estructurado (S.O.A.P.).
@@ -52,21 +52,48 @@ graph TD
 
 ### A. Cifrado de Datos en Reposo y en Tránsito
 * **En Tránsito:** TLS 1.3 forzado con HSTS (HTTP Strict Transport Security) obligatorio. Ninguna petición viajará sin cifrar.
-* **En Reposo a Nivel de Columna (Field-Level Encryption):** Para cumplir con **HIPAA** y **GDPR**, los campos de información médica protegida (PHI) como el texto libre de la historia clínica, diagnósticos, y datos identificatorios del paciente (documento de identidad, email) se guardarán cifrados en PostgreSQL mediante **AES-256-GCM**.
+* **Cifrado Híbrido a Nivel de Aplicación:**
+  * **Datos Sensibles sin Búsqueda (PHI Descriptivo):** Los campos de texto libre clínicos, evoluciones y recetas se cifrarán en Go usando **AES-256-GCM** (no determinista) antes de guardarse en la BD.
+  * **Búsquedas Exactas (DNI/CI, Email, Teléfono):** Se cifran con AES-256-GCM para visualización. Adicionalmente, se genera un **Blind Index (Índice Ciego)** calculado en Go como `HMAC-SHA256(normalizar(dato), secret_salt)` con un índice B-Tree en la base de datos para búsquedas rápidas exactas en $O(1)$. La normalización previa limpia espacios, convierte a minúsculas y elimina caracteres especiales.
+  * **Búsquedas Parciales (Nombres):** Se guardan en texto plano indexable en la base de datos para permitir búsquedas eficientes con `ILIKE`, pero protegidos por **Row-Level Security (RLS)** y cifrado de volumen a nivel de infraestructura (**Transparent Data Encryption - TDE**).
+  * **Entornos de Desarrollo y Backups (Data Masking):** Se implementará un script obligatorio de enmascaramiento de datos que anonimiza o reemplaza nombres reales por datos ficticios (ej. usando la librería Faker de Go) antes de que un dump de producción viaje a entornos de desarrollo o staging.
 * **Gestión de Claves Externa:** La clave maestra de descifrado (KEK) no se almacenará en la base de datos, sino que se gestionará mediante un servicio externo de KMS (AWS KMS, HashiCorp Vault o Azure Key Vault) con rotación automática de claves.
 
-### B. Bitácora de Auditoría Inmutable (Compliance HIPAA)
-* HIPAA exige que cada acceso (lectura o escritura) a datos de salud de un paciente quede registrado de manera auditable.
-* Implementaremos una bitácora de logs de auditoría de tipo **WORM (Write Once, Read Many)**. Cada vez que un usuario lea o edite una historia clínica, Go registrará un evento inmutable (Usuario, Acción, Paciente, Timestamp, IP). Estos registros se enviarán a un bucket S3 con bloqueo de objetos (Object Lock) inalterable por un periodo de retención obligatorio (ej. 7 años).
+### B. Bitácora de Auditoría de Dos Niveles (Hot / Cold Tier)
+* HIPAA exige que cada acceso (lectura o escritura) a datos de salud de un paciente quede registrado de manera auditable. Implementaremos un flujo híbrido:
+  * **Hot Tier (Consulta Operativa):** Los logs se escriben en una tabla particionada de PostgreSQL para permitir consultas y dashboards instantáneos para los administradores clínicos en el frontend.
+  * **Cold Tier (Cumplimiento Legal):** Un worker asíncrono en Go empaquetará los logs calientes diariamente y los subirá a un bucket S3 con bloqueo de objetos (**Object Lock WORM**) inalterable durante el periodo de retención obligatorio de la ley.
 
 ### C. Aislamiento Multi-Tenant con PostgreSQL RLS
 * Para blindar el SaaS y evitar filtraciones de datos entre clínicas (ataques tipo IDOR), utilizaremos **Row-Level Security (RLS)** en PostgreSQL.
+* **Flujo Transaccional Seguro (Wrapper SET LOCAL):**
+  * Para evitar fugas de estado (*State Leak*) en el pool de conexiones de Go, el `tenant_id` se inyecta en la sesión mediante `SET LOCAL app.current_tenant = 'val'` dentro de una transacción.
+  * Para mantener el código **DRY** y evitar repetir el boilerplate de transacciones en cada consulta, implementaremos un ejecutador seguro (`ExecuteInTenantTx`):
+    ```go
+    func ExecuteInTenantTx(ctx context.Context, db *sql.DB, fn func(tx *sql.Tx) error) error {
+        tenantID, ok := contextutils.TenantFromContext(ctx)
+        if !ok { return ErrMissingTenant }
+        tx, err := db.BeginTx(ctx, nil)
+        if err != nil { return err }
+        defer tx.Rollback()
+        if _, err := tx.ExecContext(ctx, "SET LOCAL app.current_tenant = $1", tenantID); err != nil {
+            return err
+        }
+        if err := fn(tx); err != nil { return err }
+        return tx.Commit()
+    }
+    ```
+  * Los repositorios de la capa de adaptadores usarán obligatoriamente este wrapper para encapsular el SQL, garantizando que el aislamiento sea automático y a prueba de olvidos.
 * Cada consulta a la base de datos se validará a nivel de motor de PostgreSQL inyectando el `tenant_id` de la sesión. Incluso si el desarrollador comete un error en el código de Go y olvida un filtro `WHERE`, el motor de base de datos denegará el acceso si el registro no pertenece a la clínica del usuario autenticado.
 
 ### D. Gestión de Identidades Bancaria
 * **Hashing de Contraseñas:** Usaremos **Argon2id** (recomendado por OWASP y el estándar de oro actual) en lugar de herramientas obsoletas como MD5 o Bcrypt.
 * **Autenticación Multifactor (MFA):** Requisito obligatorio para administradores y personal médico a través de TOTP (Google Authenticator, Authy).
-* **Sesiones Seguras:** Los tokens JWT de sesión se almacenarán estrictamente en cookies HTTP-only, Secure y SameSite=Strict para mitigar ataques XSS y CSRF.
+* **Sesiones Seguras y JWT de Vida Corta (Mitigación Stateless):** 
+  * Los Access Tokens tendrán una vida útil muy corta (máximo 15 minutos).
+  * Los Refresh Tokens se almacenarán de forma segura en la base de datos o en Redis para permitir la renovación de sesiones sin requerir las credenciales del usuario de forma constante.
+  * Implementaremos un **Middleware de Denylist** en la capa del router Chi que verificará activamente el estado de revocación del Token o la sesión en una memoria rápida (Redis o tabla pequeña de BD) para bloquear accesos de forma instantánea ante la desactivación o despido de personal, resolviendo la vulnerabilidad nativa de los JWT.
+  * Los tokens JWT de sesión se almacenarán estrictamente en cookies HTTP-only, Secure y SameSite=Strict para mitigar ataques XSS y CSRF.
 
 ### E. Anonimización y Derecho al Olvido (GDPR)
 * Cumpliendo con el **GDPR**, el sistema soportará la seudonimización de datos. Si un paciente solicita el "Derecho al Olvido", el sistema borrará sus datos identificatorios (nombres, teléfono, documento) pero conservará de forma anonimizada las historias clínicas para análisis estadístico e histórico de tratamientos de la clínica, sin posibilidad de re-identificación.
@@ -166,6 +193,11 @@ func main() {
     
     // 3. Arrancar servidor web y endpoints...
 }
+
+#### D. Estrategia de Migraciones y Esquemas Separados
+Para mantener la separación limpia entre el Core Open Source y el SaaS propietario:
+* **Esquemas Separados:** Usaremos esquemas lógicos separados en PostgreSQL: `core_data` (para tablas comunitarias) y `saas_data` (para tablas premium como suscripciones). Esto permite foreign keys transversales evitando cruzar contextos lógicos.
+* **Control de Migraciones:** El Core encapsulará sus propias migraciones SQL. El repositorio SaaS importará y ejecutará estas migraciones del Core antes de correr las suyas propias sobre el esquema `saas_data`.
 ```
 
 ---
@@ -181,7 +213,11 @@ Para un producto enterprise, las características se dividen entre lo que es de 
 | **Agenda & Citas** | Calendario mensual/semanal, reserva de citas y estados básicos. | Recordatorios automáticos por WhatsApp/SMS, telemedicina integrada y sincronización con Google Calendar. |
 | **Historias Clínicas** | Expediente clínico básico con editor de texto enriquecido (HTML/Markdown). | **Especialidades Médicas Inyectables:** Odontograma interactivo, dermatología con galería de evolución comparativa de fotos, ginecología. |
 | **Finanzas** | Registro de cobros, abonos y saldos (tipo de dato decimal estricto). | Facturación electrónica legal, control de flujo de caja, pasarelas de pago integradas (Stripe/PayPal), cálculo de comisiones a médicos. |
-| **Seguridad & Auditoría** | Autenticación clásica con JWT, encriptación Bcrypt y roles básicos (Admin/Médico). | Autenticación Single Sign-On (SSO), Logs de auditoría inmutables (cumplimiento regulatorio HIPAA/GDPR para datos médicos). |
+| **Seguridad & Auditoría** | Autenticación clásica con JWT (vida corta) + Refresh tokens en base de datos. Encriptación Bcrypt/Argon2id. | Autenticación Single Sign-On (SSO), Middleware de Denylist para revocación inmediata y Logs de auditoría inmutables (Hot/Cold Tier). |
+| **Analítica Longitudinal** | Historial básico de visitas y listado de signos vitales. | Motor de Tendencias Gráficas (curvas de presión, glucosa) y cálculo de deltas en backend (+X% respecto a la visita anterior). Alertas visuales de biomarcadores fuera de rango clínico. |
+| **Portal B2B (Corporativo)** | N/A (Exclusivo SaaS) | Portal independiente para empresas cliente (empresa.clinicalyx.com). Roster de empleados (carga masiva), agendamiento ocupacional masivo y mapa de calor epidemiológico anonimizado. Descarga segura de descansos médicos con RLS. |
+| **LIMS (Laboratorio Nativo)** | Módulo de Laboratorio propio: flujo de órdenes y resultados (PENDING -> IN_PROGRESS -> COMPLETED). Notificación asíncrona interna (`LabResultCompleted`). Validación en dos pasos Maker-Checker (Borrador -> Aprobación de Jefe de Laboratorio). Restricción de acceso para laboratorista (no ve historia clínica). | Extracción automática por OCR de PDF de laboratorios con validación obligatoria del médico (Human-in-the-loop) guardado como Borrador preliminar, firmado digital con hash/QR e integración HL7/FHIR (Fase 2). |
+| **Facturación B2B** | N/A (Exclusivo SaaS) | Cuentas corrientes por empresa cliente. Centro de costos consolidado para facturar atenciones acumuladas mensualmente con emisión de factura electrónica automatizada. |
 
 ---
 
@@ -204,19 +240,32 @@ Frontend desarrollado en Next.js (React/TypeScript).
 
 ---
 
-## 6. Estrategia TDD (Test-Driven Development)
+## 6. Estrategia TDD (Test-Driven Development) Pragmático
 
-Toda la lógica del Core se programará bajo el ciclo **Rojo-Verde-Refactor**:
-1. **Red:** Escribir pruebas unitarias en Go para los casos de uso (ej. `CreatePatient` con reglas de validación de documento de identidad) que fallen debido a que no hay implementación.
-2. **Green:** Desarrollar el código mínimo necesario en el dominio y caso de uso para que las pruebas pasen.
-3. **Refactor:** Optimizar el código aplicando SOLID y patrones de diseño (como Factory o Builder) garantizando que los tests se mantengan en verde.
+Toda la lógica crítica de negocio del Core se programará bajo el ciclo **Rojo-Verde-Refactor** enfocado en el valor real:
+1. **Foco Pragmático:** Aplicaremos TDD estricto en la capa de **Dominio** y **Casos de Uso críticos** (reglas de cálculo financiero, hashing de indexación ciega, cifrado de PHI, y aislamiento multi-tenant RLS).
+2. **Ciclo Rojo-Verde-Refactor:**
+   * **Red:** Escribir pruebas unitarias en Go para los casos de uso que fallen debido a la ausencia de implementación.
+   * **Green:** Desarrollar el código mínimo necesario en el dominio para que las pruebas pasen.
+   * **Refactor:** Optimizar el código aplicando SOLID sin romper los tests.
+3. **Exclusiones:** Evitaremos la sobrecarga de TDD en endpoints puramente CRUD sin reglas de negocio (ej. tablas maestras de países o especialidades) para mantener la velocidad de entrega del equipo sin perder calidad en el núcleo.
 
 ---
 
 ## 7. Verification Plan
 
 ### Automated Tests
-- Ejecutar pruebas unitarias de Go:
+
+Implementaremos una estrategia híbrida de testing para asegurar robustez sin perder velocidad:
+1. **Unit Tests (Dominio y Casos de Uso):**
+   * Correrán 100% en memoria en microsegundos.
+   * Usaremos interfaces de los puertos mockeadas de forma manual o autogeneradas para aislar la lógica de negocio pura de bases de datos y red.
+2. **Integration Tests (Adaptadores de Base de Datos):**
+   * **Es innegociable testear contra un motor real de PostgreSQL**, ya que de lo contrario no podemos validar que las políticas de **RLS** filtren adecuadamente y que el `SET LOCAL` funcione.
+   * **En desarrollo local:** Las pruebas de integración se conectarán a un PostgreSQL persistente corriendo en Docker (vía `docker-compose.yml`). Para evitar race conditions y *flaky tests* provocados por ejecuciones concurrentes (`t.Parallel()`) pisando tablas con `TRUNCATE`, prohibiremos la ejecución paralela en los adaptadores de base de datos, forzando una ejecución estrictamente secuencial de las suites de persistencia.
+   * **En CI/CD (Pipeline):** Utilizaremos **Testcontainers para Go**. El pipeline de integración continua levantará automáticamente un contenedor efímero de PostgreSQL real en Docker, ejecutará las pruebas de adaptadores en un entorno limpio e inmutable, y lo destruirá al finalizar.
+
+- Comando para ejecutar la suite completa:
   ```bash
   go test -v ./...
   ```
