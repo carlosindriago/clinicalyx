@@ -1,6 +1,6 @@
 # Plan de Implementación: Clinicalyx Opencore & SaaS Enterprise
 
-Este documento establece la visión estratégica, el modelo de negocio, la arquitectura técnica, el mapa de características, el flujo de Git profesional y la metodología TDD para el proyecto **Clinicalyx**.
+Este documento establece la visión estratégica, el modelo de negocio, la arquitectura técnica, la seguridad de datos, el mapa de características, el flujo de Git profesional y la metodología TDD para el proyecto **Clinicalyx**.
 
 ---
 
@@ -37,7 +37,43 @@ El proyecto se monetiza bajo un esquema de **Núcleo Abierto (Opencore)**:
 
 ---
 
-## 2. Estrategia de Repositorio: ¿Uno o Dos Proyectos?
+## 2. Arquitectura de Seguridad (HIPAA, GDPR y Blindaje Bancario)
+
+La seguridad de datos de salud y financieros no es una característica que se añade al final; se diseña desde los cimientos (**Security by Design**). En Clinicalyx aplicaremos los siguientes estándares de seguridad enterprise:
+
+```mermaid
+graph TD
+    A[Datos Sensibles PHI/Financieros] --> B{Medidas de Seguridad}
+    B --> C[Cifrado a Nivel de Columna AES-256-GCM]
+    B --> D[Auditoría Inmutable WORM]
+    B --> E[PostgreSQL Row-Level Security]
+    B --> F[Argon2id + MFA]
+```
+
+### A. Cifrado de Datos en Reposo y en Tránsito
+* **En Tránsito:** TLS 1.3 forzado con HSTS (HTTP Strict Transport Security) obligatorio. Ninguna petición viajará sin cifrar.
+* **En Reposo a Nivel de Columna (Field-Level Encryption):** Para cumplir con **HIPAA** y **GDPR**, los campos de información médica protegida (PHI) como el texto libre de la historia clínica, diagnósticos, y datos identificatorios del paciente (documento de identidad, email) se guardarán cifrados en PostgreSQL mediante **AES-256-GCM**.
+* **Gestión de Claves Externa:** La clave maestra de descifrado (KEK) no se almacenará en la base de datos, sino que se gestionará mediante un servicio externo de KMS (AWS KMS, HashiCorp Vault o Azure Key Vault) con rotación automática de claves.
+
+### B. Bitácora de Auditoría Inmutable (Compliance HIPAA)
+* HIPAA exige que cada acceso (lectura o escritura) a datos de salud de un paciente quede registrado de manera auditable.
+* Implementaremos una bitácora de logs de auditoría de tipo **WORM (Write Once, Read Many)**. Cada vez que un usuario lea o edite una historia clínica, Go registrará un evento inmutable (Usuario, Acción, Paciente, Timestamp, IP). Estos registros se enviarán a un bucket S3 con bloqueo de objetos (Object Lock) inalterable por un periodo de retención obligatorio (ej. 7 años).
+
+### C. Aislamiento Multi-Tenant con PostgreSQL RLS
+* Para blindar el SaaS y evitar filtraciones de datos entre clínicas (ataques tipo IDOR), utilizaremos **Row-Level Security (RLS)** en PostgreSQL.
+* Cada consulta a la base de datos se validará a nivel de motor de PostgreSQL inyectando el `tenant_id` de la sesión. Incluso si el desarrollador comete un error en el código de Go y olvida un filtro `WHERE`, el motor de base de datos denegará el acceso si el registro no pertenece a la clínica del usuario autenticado.
+
+### D. Gestión de Identidades Bancaria
+* **Hashing de Contraseñas:** Usaremos **Argon2id** (recomendado por OWASP y el estándar de oro actual) en lugar de herramientas obsoletas como MD5 o Bcrypt.
+* **Autenticación Multifactor (MFA):** Requisito obligatorio para administradores y personal médico a través de TOTP (Google Authenticator, Authy).
+* **Sesiones Seguras:** Los tokens JWT de sesión se almacenarán estrictamente en cookies HTTP-only, Secure y SameSite=Strict para mitigar ataques XSS y CSRF.
+
+### E. Anonimización y Derecho al Olvido (GDPR)
+* Cumpliendo con el **GDPR**, el sistema soportará la seudonimización de datos. Si un paciente solicita el "Derecho al Olvido", el sistema borrará sus datos identificatorios (nombres, teléfono, documento) pero conservará de forma anonimizada las historias clínicas para análisis estadístico e histórico de tratamientos de la clínica, sin posibilidad de re-identificación.
+
+---
+
+## 3. Estrategia de Repositorio: ¿Uno o Dos Proyectos?
 
 Para comercializar un producto **Opencore** y a la vez ofrecer una versión **SaaS de pago**, la mejor decisión arquitectónica es usar **repositorios separados con inyección de dependencias**. 
 
@@ -134,7 +170,7 @@ func main() {
 
 ---
 
-## 3. Mapa de Características (Features)
+## 4. Mapa de Características (Features)
 
 Para un producto enterprise, las características se dividen entre lo que es de código abierto (Community) y lo que se comercializa bajo suscripción (Enterprise/SaaS):
 
@@ -149,7 +185,7 @@ Para un producto enterprise, las características se dividen entre lo que es de 
 
 ---
 
-## 4. Proposed Changes
+## 5. Proposed Changes
 
 La estructura del nuevo directorio oficial [clinicalyx](file:///home/carlos/Proyectos/clinicalyx) contendrá la versión **Core (Community)** como base del desarrollo local.
 
@@ -168,7 +204,7 @@ Frontend desarrollado en Next.js (React/TypeScript).
 
 ---
 
-## 5. Estrategia TDD (Test-Driven Development)
+## 6. Estrategia TDD (Test-Driven Development)
 
 Toda la lógica del Core se programará bajo el ciclo **Rojo-Verde-Refactor**:
 1. **Red:** Escribir pruebas unitarias en Go para los casos de uso (ej. `CreatePatient` con reglas de validación de documento de identidad) que fallen debido a que no hay implementación.
@@ -177,7 +213,7 @@ Toda la lógica del Core se programará bajo el ciclo **Rojo-Verde-Refactor**:
 
 ---
 
-## 6. Verification Plan
+## 7. Verification Plan
 
 ### Automated Tests
 - Ejecutar pruebas unitarias de Go:
