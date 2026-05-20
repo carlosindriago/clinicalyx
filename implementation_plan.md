@@ -1,75 +1,82 @@
-# Plan de Implementación: Modernización de Clinicaly (Opencore)
+# Plan de Implementación: Clinicalyx Opencore & SaaS Enterprise
 
-Este documento detalla el plan técnico, la estructura de directorios, la metodología TDD y el flujo de Git profesional para el nuevo proyecto `clinicaly-modern`.
+Este documento establece la estrategia de arquitectura para el modelo de negocio **Opencore**, el mapa de características (Core vs. Enterprise/SaaS), el flujo de Git profesional y la metodología TDD para el proyecto **Clinicalyx**.
 
-## User Review Required
+## Estrategia de Repositorio: ¿Uno o Dos Proyectos?
 
-> [!IMPORTANT]
-> **Ubicación del Proyecto:** Para cumplir con los permisos del entorno, el nuevo directorio `clinicaly-modern` se creará dentro del workspace actual: [clinicaly-modern](file:///home/carlos/Proyectos/clinicaly/clinicaly-modern). Si preferís otra ubicación externa, requerirá una solicitud de permisos adicional.
-> 
-> **Metodología TDD Estricta:** Seguiremos el ciclo Rojo-Verde-Refactor para toda la lógica de negocio del Backend en Go antes de escribir cualquier código de infraestructura (controladores, adaptadores de DB, etc.). ¿Estás de acuerdo con este enfoque?
+Para comercializar un producto **Opencore** y a la vez ofrecer una versión **SaaS de pago**, la mejor decisión arquitectónica es usar **repositorios separados con inyección de dependencias**. 
+
+```mermaid
+graph TD
+    A[clinicalyx-core - Público/OpenSource] -->|Define Ports / Interfaces| B(Reglas de Negocio base)
+    C[clinicalyx-saas - Privado/Cerrado] -->|Importa Core como dependencias| D(Inyecta adaptadores Premium)
+    D -->|Implementa| E[Stripe, WhatsApp API, Facturación Electrónica]
+```
+
+### ¿Por qué este enfoque?
+1. **Seguridad Física del Código:** No hay riesgo de que tu código propietario de facturación o pasarelas de pago se filtre por error al repositorio público de GitHub.
+2. **Poder de la Arquitectura Hexagonal:** El repositorio público `clinicalyx-core` define los **Ports (interfaces)** para los módulos de especialidad y servicios externos. La versión premium `clinicalyx-saas` simplemente importa este Core y le inyecta sus propios **Adapters (adaptadores)** de pago en el arranque (`main.go`).
+3. **Portafolio Senior:** Demuestra un dominio absoluto de los principios **SOLID**, la inversión de dependencias y el desacoplamiento de capas.
+
+---
+
+## Mapa de Características (Features)
+
+Para un producto enterprise, las características se dividen entre lo que es de código abierto (Community) y lo que se comercializa bajo suscripción (Enterprise/SaaS):
+
+| Módulo / Feature | Core (Community Edition - Open Source) | Enterprise / SaaS (Premium Edition - Closed Source) |
+| :--- | :--- | :--- |
+| **Multi-Tenancy** | Aislamiento básico a nivel lógico de datos (PostgreSQL RLS). | Base de datos dedicada por tenant (aislamiento físico para clínicas grandes) + Portal de facturación del plan SaaS. |
+| **Pacientes** | CRUD clásico, ficha de datos personales, historial de visitas y perfil. | Búsqueda por IA semántica de pacientes, campos dinámicos customizables según clínica. |
+| **Agenda & Citas** | Calendario mensual/semanal, reserva de citas y estados básicos. | Recordatorios automáticos por WhatsApp/SMS, telemedicina integrada y sincronización con Google Calendar. |
+| **Historias Clínicas** | Expediente clínico básico con editor de texto enriquecido (HTML/Markdown). | **Especialidades Médicas Inyectables:** Odontograma interactivo, dermatología con galería de evolución comparativa de fotos, ginecología. |
+| **Finanzas** | Registro de cobros, abonos y saldos (tipo de dato decimal estricto). | Facturación electrónica legal, control de flujo de caja, pasarelas de pago integradas (Stripe/PayPal), cálculo de comisiones a médicos. |
+| **Seguridad & Auditoría** | Autenticación clásica con JWT, encriptación Bcrypt y roles básicos (Admin/Médico). | Autenticación Single Sign-On (SSO), Logs de auditoría inmutables (cumplimiento regulatorio HIPAA/GDPR para datos médicos). |
+
+---
 
 ## Proposed Changes
 
-### [clinicaly-modern]
+La estructura del nuevo directorio oficial [clinicalyx](file:///home/carlos/Proyectos/clinicalyx) contendrá la versión **Core (Community)** como base del desarrollo local.
 
-Creación del nuevo directorio base e inicialización del repositorio Git y la estructura de carpetas inicial.
+### [clinicalyx] (Core Open Source Repository)
 
-#### [NEW] [clinicaly-modern](file:///home/carlos/Proyectos/clinicaly/clinicaly-modern)
-Directorio raíz del nuevo proyecto.
+#### [NEW] [backend/](file:///home/carlos/Proyectos/clinicalyx/backend)
+Backend desarrollado en Go aplicando Arquitectura Hexagonal.
+- `backend/cmd/api/`: Orquestador de inicio e inyección de dependencias.
+- `backend/internal/domain/`: Modelos del negocio puros (ej. `Patient`, `Appointment`, `Payment`).
+- `backend/internal/ports/`: Interfaces de comunicación (inbound y outbound).
+- `backend/internal/usecases/`: Casos de uso de la aplicación (lógica de paciente, citas).
+- `backend/internal/adapters/`: Controladores HTTP, repositorios de PostgreSQL y encriptación.
 
-#### [NEW] [.gitignore](file:///home/carlos/Proyectos/clinicaly/clinicaly-modern/.gitignore)
-Configuración global de Git para ignorar dependencias de Go, Node.js y variables de entorno locales.
+#### [NEW] [frontend/](file:///home/carlos/Proyectos/clinicalyx/frontend)
+Frontend desarrollado en Next.js (React/TypeScript).
 
-#### [NEW] [README.md](file:///home/carlos/Proyectos/clinicaly/clinicaly-modern/README.md)
-Documentación inicial de arquitectura y guías del proyecto.
+---
 
-### Arquitectura Propuesta (Hexagonal en Go)
-El backend en Go se estructurará de la siguiente manera:
-```
-clinicaly-modern/backend/
-├── cmd/
-│   └── api/                # Entrada de la App (Inicialización de dependencias y servidor web)
-└── internal/
-    ├── domain/             # Entidades puras y reglas de negocio (ej. Paciente, Cita, Pago)
-    ├── ports/              # Interfaces de entrada (Driving) y salida (Driven)
-    │   ├── inbound/        # Interfaces que llaman a la lógica (ej. UseCases)
-    │   └── outbound/       # Interfaces que la lógica llama (ej. Repositorios de DB)
-    ├── usecases/           # Implementación de los casos de uso (Orquestadores)
-    └── adapters/           # Código de infraestructura (PostgreSQL, Router Fiber/Gin, etc.)
-```
+## Estrategia TDD (Test-Driven Development)
 
-### Flujo de Git Profesional (Conventional Commits)
-Se inicializará el repositorio Git y se trabajará bajo un flujo Trunk-Based con ramas de feature de ciclo corto:
-1. `main`: Rama de producción (protegida).
-2. Ramas de feature: `feat/setup-project`, `feat/patient-domain`, etc.
-3. Convención de Commits:
-   - `feat(domain): agregar entidad paciente`
-   - `test(usecases): agregar pruebas para creación de paciente`
-   - `fix(adapters): corregir deserialización de jsonb`
-
-### Estrategia TDD (Test-Driven Development)
-1. **Rojo (Red):** Escribir una prueba unitaria para un caso de uso (ej. `CreatePatient`) en `backend/internal/usecases/patient_test.go` que falle porque el código aún no existe o no implementa la lógica.
-2. **Verde (Green):** Escribir el código mínimo necesario en `backend/internal/domain` y `backend/internal/usecases` para que el test pase de forma exitosa.
-3. **Refactor (Refactor):** Limpiar el código, eliminar duplicados, aplicar principios SOLID y patrones de diseño sin alterar el comportamiento (asegurando que el test siga pasando).
+Toda la lógica del Core se programará bajo el ciclo **Rojo-Verde-Refactor**:
+1. **Red:** Escribir pruebas unitarias en Go para los casos de uso (ej. `CreatePatient` con reglas de validación de documento de identidad) que fallen debido a que no hay implementación.
+2. **Green:** Desarrollar el código mínimo necesario en el dominio y caso de uso para que las pruebas pasen.
+3. **Refactor:** Optimizar el código aplicando SOLID y patrones de diseño (como Factory o Builder) garantizando que los tests se mantengan en verde.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Ejecución de los tests unitarios en el backend de Go con:
+- Ejecutar pruebas unitarias de Go:
   ```bash
   go test -v ./...
   ```
-- Ejecución de linters para mantener clean code:
+- Ejecución de linters para clean code:
   ```bash
   golangci-lint run
   ```
 
 ### Manual Verification
-- Verificación del estado del repositorio Git y flujo de ramas:
+- Pruebas del ciclo de CI/CD simulado a través del flujo de ramas de Git:
   ```bash
-  git status
   git log --oneline
   ```
