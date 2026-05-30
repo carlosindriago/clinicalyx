@@ -13,6 +13,13 @@ var (
 	ErrInvalidUserRole    = errors.New("rol de usuario inválido")
 	ErrInvalidUserStatus  = errors.New("estado de usuario inválido")
 	ErrInvalidUserLastName = errors.New("apellido de usuario inválido o vacío")
-	ErrInvalidPassword    = errors.New("contraseña de usuario inválida")
-	ErrInvalidUserID      = errors.New("identificador de usuario inválido")
+	ErrInvalidPassword     = errors.New("contraseña de usuario inválida")
+	ErrInvalidUserID       = errors.New("identificador de usuario inválido")
+	ErrFutureConsultationDate = errors.New("la fecha de la consulta no puede ser en el futuro")
+	ErrInvalidConsultationID  = errors.New("identificador de consulta inválido")
+	ErrEmptyDiagnosticCode    = errors.New("el código de diagnóstico no puede estar vacío")
+	ErrEmptyNotes             = errors.New("las notas de la consulta no pueden estar vacías")
+	ErrPatientNotFound        = errors.New("el paciente especificado no existe")
 )
+
+

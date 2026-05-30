@@ -89,3 +89,31 @@ func ParseUserID(s string) (UserID, error) {
 	}
 	return UserID(val), nil
 }
+
+// ConsultationID es un identificador fuertemente tipado para la consulta médica.
+type ConsultationID uuid.UUID
+
+// NewConsultationID genera un nuevo ConsultationID (UUIDv4).
+func NewConsultationID() ConsultationID {
+	return ConsultationID(uuid.New())
+}
+
+// IsNil comprueba si el ConsultationID es el valor nulo de UUID.
+func (id ConsultationID) IsNil() bool {
+	return uuid.UUID(id) == uuid.Nil
+}
+
+// String convierte el ConsultationID a string.
+func (id ConsultationID) String() string {
+	return uuid.UUID(id).String()
+}
+
+// ParseConsultationID intenta parsear un string como ConsultationID.
+func ParseConsultationID(s string) (ConsultationID, error) {
+	val, err := uuid.Parse(s)
+	if err != nil {
+		return ConsultationID(uuid.Nil), ErrInvalidConsultationID
+	}
+	return ConsultationID(val), nil
+}
+
