@@ -19,16 +19,16 @@
 - [x] Crear cargador de configuración seguro en `internal/config/config.go` e `.env.example`
 
 ## Módulo Pacientes - Core (TDD)
-- [ ] Crear la rama `feat/patient-core`
-- [ ] Escribir el primer test unitario fallando (Rojo) para la creación de un paciente (`CreatePatient`)
-- [ ] Implementar la entidad `Patient` y el caso de uso `CreatePatient` para hacer pasar el test (Verde)
-- [ ] Refactorizar el código y separar adecuadamente en domain, usecases y ports (Refactor)
-- [ ] Escribir test unitario de validación de datos del paciente (ej. validación de formato de documento de identidad / C.I.)
-- [ ] Implementar validaciones correspondientes para pasar el test
+- [x] Crear la rama `feat/patient-core`
+- [x] Escribir el primer test unitario fallando (Rojo) para la creación de un paciente (`CreatePatient`)
+- [x] Implementar la entidad `Patient` y el caso de uso `CreatePatient` para hacer pasar el test (Verde)
+- [x] Refactorizar el código y separar adecuadamente en domain, usecases y ports (Refactor)
+- [x] Escribir test unitario de validación de datos del paciente (ej. validación de formato de documento de identidad / C.I.)
+- [x] Implementar validaciones correspondientes para pasar el test
 
 ## Infraestructura del Backend
-- [ ] Crear la rama `feat/patient-db`
-- [ ] Crear puerto y adaptador para PostgreSQL usando SQL
-- [ ] Escribir tests de integración para el repositorio de base de datos de pacientes (con contenedor o DB local de test)
-- [ ] Crear adaptador HTTP (Fiber o Gin) para exponer el endpoint de Pacientes
-- [ ] Validar flujos de integración
+- [x] Crear la rama `feat/patient-db`
+- [x] Crear puerto y adaptador para PostgreSQL usando SQL
+- [x] Escribir tests de integración para el repositorio de base de datos de pacientes (con contenedor o DB local de test)
+- [x] Crear adaptador HTTP (Fiber o Gin) para exponer el endpoint de Pacientes
+- [x] Validar flujos de integración
