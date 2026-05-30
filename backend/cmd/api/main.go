@@ -49,16 +49,36 @@ func main() {
 		log.Fatalf("Error al inicializar CryptoService: %v", err)
 	}
 
-	// 4. Inicializar Repositorio (Adaptador de salida)
+	// 4. Inicializar Repositorios (Adaptadores de salida)
 	patientRepo := postgres.NewPostgresPatientRepository(db, cryptoService)
+	userRepo := postgres.NewPostgresUserRepository(db, cryptoService)
+	sessionRepo := postgres.NewPostgresSessionRepository(db)
+	passwordHasher := crypto.NewArgon2idPasswordHasher()
 
-	// 5. Inicializar Casos de Uso
+	// 5. Inicializar Servicio de Tokens JWT y Middleware de Autenticación
+	jwtService := crypto.NewJWTService(cfg.EncryptionKey, 15*time.Minute, 24*time.Hour)
+	authMiddleware := inboundHTTP.NewAuthMiddleware(jwtService, sessionRepo)
+
+	// 6. Inicializar Casos de Uso
 	createPatientUC := usecases.NewCreatePatientUseCase(patientRepo)
+	setupTenantUC := usecases.NewSetupTenantUseCase(userRepo, passwordHasher)
+	loginUC := usecases.NewLoginUseCase(userRepo, sessionRepo, passwordHasher)
+	logoutUC := usecases.NewLogoutUseCase(sessionRepo)
+	toggleUserStatusUC := usecases.NewToggleUserStatusUseCase(userRepo, passwordHasher)
 
-	// 6. Inicializar Controladores HTTP (Adaptador de entrada)
+	// 7. Inicializar Controladores HTTP (Adaptadores de entrada)
 	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC)
+	authHandler := inboundHTTP.NewAuthHandler(
+		setupTenantUC,
+		loginUC,
+		logoutUC,
+		toggleUserStatusUC,
+		userRepo,
+		jwtService,
+		authMiddleware,
+	)
 
-	// 7. Configurar el Servidor HTTP (Chi)
+	// 8. Configurar el Servidor HTTP (Chi)
 	r := chi.NewRouter()
 
 	// Middlewares globales de Chi
@@ -80,6 +100,7 @@ func main() {
 
 	// Registrar Rutas
 	patientHandler.RegisterRoutes(r)
+	authHandler.RegisterRoutes(r)
 
 	// Iniciar Servidor
 	log.Printf("Servidor escuchando en el puerto %s en entorno: %s", cfg.Port, cfg.Env)
