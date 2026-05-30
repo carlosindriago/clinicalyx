@@ -3,14 +3,18 @@ package main
 import (
 	"database/sql"
 	"log"
+	"net/http"
+	"time"
 
 	"clinicalyx/backend/internal/adapters/crypto"
-	"clinicalyx/backend/internal/adapters/inbound/http"
+	inboundHTTP "clinicalyx/backend/internal/adapters/inbound/http"
 	"clinicalyx/backend/internal/adapters/outbound/postgres"
 	"clinicalyx/backend/internal/config"
 	"clinicalyx/backend/internal/core/usecases"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	_ "github.com/lib/pq"
 )
 
@@ -52,23 +56,41 @@ func main() {
 	createPatientUC := usecases.NewCreatePatientUseCase(patientRepo)
 
 	// 6. Inicializar Controladores HTTP (Adaptador de entrada)
-	patientHandler := http.NewPatientHandler(createPatientUC)
+	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC)
 
-	// 7. Configurar el Servidor HTTP (Gin)
-	if cfg.Env == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	} else {
-		gin.SetMode(gin.DebugMode)
-	}
+	// 7. Configurar el Servidor HTTP (Chi)
+	r := chi.NewRouter()
 
-	r := gin.Default()
+	// Middlewares globales de Chi
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Timeout(60 * time.Second))
+
+	// CORS Config
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"}, // Ajustar según conveniencia de seguridad en producción
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	// Registrar Rutas
 	patientHandler.RegisterRoutes(r)
 
 	// Iniciar Servidor
 	log.Printf("Servidor escuchando en el puerto %s en entorno: %s", cfg.Port, cfg.Env)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	srv := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      r,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Error fatal al iniciar el servidor HTTP: %v", err)
 	}
 }

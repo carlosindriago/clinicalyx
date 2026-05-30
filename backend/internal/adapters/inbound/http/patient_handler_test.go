@@ -10,7 +10,7 @@ import (
 
 	"clinicalyx/backend/internal/core/domain"
 	"clinicalyx/backend/internal/core/usecases"
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -54,8 +54,6 @@ func (m *MockPatientRepository) FindByDocument(ctx context.Context, tenantID dom
 }
 
 func TestPatientHandler_CreatePatient(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
 	tenantID := uuid.New().String()
 
 	t.Run("Creación exitosa de paciente", func(t *testing.T) {
@@ -63,7 +61,7 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		useCase := usecases.NewCreatePatientUseCase(repo)
 		handler := NewPatientHandler(useCase)
 
-		r := gin.New()
+		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
 
 		body := map[string]string{
@@ -100,7 +98,7 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		useCase := usecases.NewCreatePatientUseCase(repo)
 		handler := NewPatientHandler(useCase)
 
-		r := gin.New()
+		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
 
 		body := map[string]string{
@@ -127,7 +125,7 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		useCase := usecases.NewCreatePatientUseCase(repo)
 		handler := NewPatientHandler(useCase)
 
-		r := gin.New()
+		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
 
 		body := map[string]string{
@@ -155,7 +153,7 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		useCase := usecases.NewCreatePatientUseCase(repo)
 		handler := NewPatientHandler(useCase)
 
-		r := gin.New()
+		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
 
 		body := map[string]string{
@@ -191,7 +189,7 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		useCase := usecases.NewCreatePatientUseCase(repo)
 		handler := NewPatientHandler(useCase)
 
-		r := gin.New()
+		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
 
 		body := map[string]string{
