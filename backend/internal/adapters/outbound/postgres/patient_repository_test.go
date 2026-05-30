@@ -50,20 +50,31 @@ func TestMain(m *testing.M) {
 	}
 
 	// Ejecutar script de migración SQL usando adminDB
-	migPath := filepath.Join("..", "..", "..", "..", "migrations", "000001_create_patients_table.up.sql")
-	sqlBytes, err := os.ReadFile(migPath)
+	migPath1 := filepath.Join("..", "..", "..", "..", "migrations", "000001_create_patients_table.up.sql")
+	sqlBytes1, err := os.ReadFile(migPath1)
 	if err != nil {
-		panic("No se pudo leer el archivo de migración SQL en " + migPath + ": " + err.Error())
+		panic("No se pudo leer el archivo de migración SQL en " + migPath1 + ": " + err.Error())
 	}
 
-	_, err = adminDB.Exec("DROP TABLE IF EXISTS patients CASCADE")
+	migPath2 := filepath.Join("..", "..", "..", "..", "migrations", "000002_create_auth_tables.up.sql")
+	sqlBytes2, err := os.ReadFile(migPath2)
+	if err != nil {
+		panic("No se pudo leer el archivo de migración SQL en " + migPath2 + ": " + err.Error())
+	}
+
+	_, err = adminDB.Exec("DROP TABLE IF EXISTS sessions CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS patients CASCADE;")
 	if err != nil {
 		panic("Error limpiando tablas existentes en BD de test: " + err.Error())
 	}
 
-	_, err = adminDB.Exec(string(sqlBytes))
+	_, err = adminDB.Exec(string(sqlBytes1))
 	if err != nil {
-		panic("Error ejecutando migración inicial de base de datos de test: " + err.Error())
+		panic("Error ejecutando migración de pacientes en base de datos de test: " + err.Error())
+	}
+
+	_, err = adminDB.Exec(string(sqlBytes2))
+	if err != nil {
+		panic("Error ejecutando migración de auth en base de datos de test: " + err.Error())
 	}
 
 	// Ahora inicializamos testDB como el usuario de aplicación clinicalyx_app_user (no-superusuario)
