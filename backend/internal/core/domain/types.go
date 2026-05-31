@@ -117,3 +117,31 @@ func ParseConsultationID(s string) (ConsultationID, error) {
 	return ConsultationID(val), nil
 }
 
+// AppointmentID es un identificador fuertemente tipado para las citas médicas.
+type AppointmentID uuid.UUID
+
+// NewAppointmentID genera un nuevo AppointmentID (UUIDv4).
+func NewAppointmentID() AppointmentID {
+	return AppointmentID(uuid.New())
+}
+
+// IsNil comprueba si el AppointmentID es el valor nulo de UUID.
+func (id AppointmentID) IsNil() bool {
+	return uuid.UUID(id) == uuid.Nil
+}
+
+// String convierte el AppointmentID a string.
+func (id AppointmentID) String() string {
+	return uuid.UUID(id).String()
+}
+
+// ParseAppointmentID intenta parsear un string como AppointmentID.
+func ParseAppointmentID(s string) (AppointmentID, error) {
+	val, err := uuid.Parse(s)
+	if err != nil {
+		return AppointmentID(uuid.Nil), ErrInvalidAppointmentID
+	}
+	return AppointmentID(val), nil
+}
+
+
