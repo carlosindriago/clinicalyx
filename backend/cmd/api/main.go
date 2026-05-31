@@ -53,6 +53,7 @@ func main() {
 	patientRepo := postgres.NewPostgresPatientRepository(db, cryptoService)
 	userRepo := postgres.NewPostgresUserRepository(db, cryptoService)
 	sessionRepo := postgres.NewPostgresSessionRepository(db)
+	consultationRepo := postgres.NewPostgresConsultationRepository(db, cryptoService)
 	passwordHasher := crypto.NewArgon2idPasswordHasher()
 
 	// 5. Inicializar Servicio de Tokens JWT y Middleware de Autenticación
@@ -65,6 +66,8 @@ func main() {
 	loginUC := usecases.NewLoginUseCase(userRepo, sessionRepo, passwordHasher)
 	logoutUC := usecases.NewLogoutUseCase(sessionRepo)
 	toggleUserStatusUC := usecases.NewToggleUserStatusUseCase(userRepo, passwordHasher)
+	recordConsultationUC := usecases.NewRecordConsultationUseCase(consultationRepo, patientRepo)
+	getConsultationHistoryUC := usecases.NewGetConsultationHistoryUseCase(consultationRepo, patientRepo)
 
 	// 7. Inicializar Controladores HTTP (Adaptadores de entrada)
 	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC)
@@ -75,6 +78,11 @@ func main() {
 		toggleUserStatusUC,
 		userRepo,
 		jwtService,
+		authMiddleware,
+	)
+	consultationHandler := inboundHTTP.NewConsultationHandler(
+		recordConsultationUC,
+		getConsultationHistoryUC,
 		authMiddleware,
 	)
 
@@ -101,6 +109,7 @@ func main() {
 	// Registrar Rutas
 	patientHandler.RegisterRoutes(r)
 	authHandler.RegisterRoutes(r)
+	consultationHandler.RegisterRoutes(r)
 
 	// Iniciar Servidor
 	log.Printf("Servidor escuchando en el puerto %s en entorno: %s", cfg.Port, cfg.Env)
