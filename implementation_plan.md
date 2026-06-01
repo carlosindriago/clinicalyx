@@ -240,42 +240,66 @@ Frontend desarrollado en Next.js (React/TypeScript).
 
 ---
 
-## 6. Estrategia TDD (Test-Driven Development) Pragmático
+# Plan de Implementación: Infraestructura del Módulo de Citas (Agenda)
 
-Toda la lógica crítica de negocio del Core se programará bajo el ciclo **Rojo-Verde-Refactor** enfocado en el valor real:
-1. **Foco Pragmático:** Aplicaremos TDD estricto en la capa de **Dominio** y **Casos de Uso críticos** (reglas de cálculo financiero, hashing de indexación ciega, cifrado de PHI, y aislamiento multi-tenant RLS).
-2. **Ciclo Rojo-Verde-Refactor:**
-   * **Red:** Escribir pruebas unitarias en Go para los casos de uso que fallen debido a la ausencia de implementación.
-   * **Green:** Desarrollar el código mínimo necesario en el dominio para que las pruebas pasen.
-   * **Refactor:** Optimizar el código aplicando SOLID sin romper los tests.
-3. **Exclusiones:** Evitaremos la sobrecarga de TDD en endpoints puramente CRUD sin reglas de negocio (ej. tablas maestras de países o especialidades) para mantener la velocidad de entrega del equipo sin perder calidad en el núcleo.
+Este plan detalla el diseño y la implementación de los adaptadores de base de datos PostgreSQL (con exclusión GiST y RLS) y los controladores HTTP Chi para el Módulo de Citas de Clinicalyx.
 
----
+## User Review Required
 
-## 7. Verification Plan
+> [!IMPORTANT]
+> **Extensión btree_gist y Restricción de Exclusión**: Para validar solapamientos temporales concurrentes de médicos, se utilizará una restricción de exclusión mediante `btree_gist` en PostgreSQL. Esto evita *race conditions* a nivel de motor de base de datos.
+> **Aislamiento RLS**: Todas las operaciones se ejecutarán a través del helper `ExecuteInTenantTx` asegurando que el `tenant_id` de la sesión limite las operaciones.
+
+## Proposed Changes
+
+### [PostgreSQL Migrations]
+#### [NEW] [000005_create_appointments_table.up.sql](file:///home/carlos/Proyectos/clinicalyx/backend/migrations/000005_create_appointments_table.up.sql)
+Crea la tabla `appointments` utilizando rangos de tiempo nativos (`tsrange`) para evitar colisiones:
+- Extensión: `CREATE EXTENSION IF NOT EXISTS btree_gist;`
+- Restricción de exclusión: `prevent_doctor_double_booking EXCLUDE USING gist (tenant_id WITH =, doctor_id WITH =, time_range WITH &&);`
+- Políticas de Row-Level Security (RLS) habilitadas y forzadas (`app.current_tenant`).
+- Privilegios otorgados a `clinicalyx_app_user`.
+
+### [Outbound Adapters]
+#### [NEW] [appointment_repository.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/outbound/postgres/appointment_repository.go)
+Implementa la persistencia de citas médicas:
+- `Save`: Inserta los registros y convierte la fecha a `tsrange` usando `tsrange($5, $6, '[)')`. Si Postgres devuelve un error de violación de exclusión (`SQLSTATE 23P01`), retorna `domain.ErrDoctorNotAvailable`.
+- `HasOverlap`: Consulta rápida `SELECT EXISTS` mediante el operador de solapamiento `&&` sobre el rango `tsrange`.
+- `UpdateStatus`: Modifica el estado de una cita existente a `COMPLETED` o `CANCELED` bajo contexto de Tenant.
+
+#### [MODIFY] [patient_repository_test.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/outbound/postgres/patient_repository_test.go)
+Modifica `TestMain` para:
+- Leer y ejecutar el script de migración SQL `000005_create_appointments_table.up.sql` durante la inicialización.
+- Limpiar (DROP/TRUNCATE) la tabla `appointments` en los flujos de pruebas.
+
+#### [NEW] [appointment_repository_test.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/outbound/postgres/appointment_repository_test.go)
+Pruebas de integración de base de datos:
+- Guardar citas de forma exitosa.
+- Validar bloqueo automático ante colisiones simultáneas por la restricción de exclusión.
+- Validar cumplimiento estricto de políticas RLS de inquilino (Tenant).
+
+### [Inbound Adapters]
+#### [NEW] [appointment_handler.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/inbound/http/appointment_handler.go)
+Controlador HTTP Chi para citas médicas:
+- `POST /api/v1/patients/{patient_id}/appointments` (Agendar cita). Extrae `tenant_id` y `doctor_id` del contexto.
+- `PATCH /api/v1/appointments/{appointment_id}/cancel` (Cancelar cita).
+- Mapeo de errores de dominio a respuestas semánticas JSON.
+
+#### [NEW] [appointment_handler_test.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/inbound/http/appointment_handler_test.go)
+Pruebas del controlador HTTP Chi para agendar y cancelar citas con mocks de los casos de uso.
+
+### [Bootstrap]
+#### [MODIFY] [main.go](file:///home/carlos/Proyectos/clinicalyx/backend/cmd/api/main.go)
+Registra las dependencias:
+- Instancia `PostgresAppointmentRepository`.
+- Instancia `ScheduleAppointmentUseCase` y `CancelAppointmentUseCase` inyectando el nuevo repositorio de citas.
+- Instancia y registra el `AppointmentHandler` con sus endpoints protegidos.
+
+## Verification Plan
 
 ### Automated Tests
-
-Implementaremos una estrategia híbrida de testing para asegurar robustez sin perder velocidad:
-1. **Unit Tests (Dominio y Casos de Uso):**
-   * Correrán 100% en memoria en microsegundos.
-   * Usaremos interfaces de los puertos mockeadas de forma manual o autogeneradas para aislar la lógica de negocio pura de bases de datos y red.
-2. **Integration Tests (Adaptadores de Base de Datos):**
-   * **Es innegociable testear contra un motor real de PostgreSQL**, ya que de lo contrario no podemos validar que las políticas de **RLS** filtren adecuadamente y que el `SET LOCAL` funcione.
-   * **En desarrollo local:** Las pruebas de integración se conectarán a un PostgreSQL persistente corriendo en Docker (vía `docker-compose.yml`). Para evitar race conditions y *flaky tests* provocados por ejecuciones concurrentes (`t.Parallel()`) pisando tablas con `TRUNCATE`, prohibiremos la ejecución paralela en los adaptadores de base de datos, forzando una ejecución estrictamente secuencial de las suites de persistencia.
-   * **En CI/CD (Pipeline):** Utilizaremos **Testcontainers para Go**. El pipeline de integración continua levantará automáticamente un contenedor efímero de PostgreSQL real en Docker, ejecutará las pruebas de adaptadores en un entorno limpio e inmutable, y lo destruirá al finalizar.
-
-- Comando para ejecutar la suite completa:
+- Ejecutar la suite completa de pruebas unitarias y de integración:
   ```bash
-  go test -v ./...
+  go test -v ./internal/adapters/...
   ```
-- Ejecución de linters para clean code:
-  ```bash
-  golangci-lint run
-  ```
-
-### Manual Verification
-- Pruebas del ciclo de CI/CD simulado a través del flujo de ramas de Git:
-  ```bash
-  git log --oneline
-  ```
+- Validar RLS y restricciones de exclusión directamente contra el Postgres de pruebas.

@@ -68,7 +68,13 @@ func TestMain(m *testing.M) {
 		panic("No se pudo leer el archivo de migración SQL en " + migPath4 + ": " + err.Error())
 	}
 
-	_, err = adminDB.Exec("DROP TABLE IF EXISTS consultations CASCADE; DROP TABLE IF EXISTS sessions CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS patients CASCADE;")
+	migPath5 := filepath.Join("..", "..", "..", "..", "migrations", "000005_create_appointments_table.up.sql")
+	sqlBytes5, err := os.ReadFile(migPath5)
+	if err != nil {
+		panic("No se pudo leer el archivo de migración SQL en " + migPath5 + ": " + err.Error())
+	}
+
+	_, err = adminDB.Exec("DROP TABLE IF EXISTS appointments CASCADE; DROP TABLE IF EXISTS consultations CASCADE; DROP TABLE IF EXISTS sessions CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS patients CASCADE;")
 	if err != nil {
 		panic("Error limpiando tablas existentes en BD de test: " + err.Error())
 	}
@@ -86,6 +92,11 @@ func TestMain(m *testing.M) {
 	_, err = adminDB.Exec(string(sqlBytes4))
 	if err != nil {
 		panic("Error ejecutando migración de consultas en base de datos de test: " + err.Error())
+	}
+
+	_, err = adminDB.Exec(string(sqlBytes5))
+	if err != nil {
+		panic("Error ejecutando migración de citas en base de datos de test: " + err.Error())
 	}
 
 	// Ahora inicializamos testDB como el usuario de aplicación clinicalyx_app_user (no-superusuario)
@@ -107,8 +118,8 @@ func TestMain(m *testing.M) {
 }
 
 func cleanDatabase(t *testing.T) {
-	// Truncamos la tabla usando adminDB para evitar restricciones de propietario
-	_, err := adminDB.Exec("TRUNCATE TABLE patients CASCADE")
+	// Truncamos las tablas usando adminDB para evitar restricciones de propietario
+	_, err := adminDB.Exec("TRUNCATE TABLE appointments, consultations, patients CASCADE")
 	if err != nil {
 		t.Fatalf("error limpiando la base de datos con privilegios de administrador: %v", err)
 	}

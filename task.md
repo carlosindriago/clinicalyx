@@ -32,3 +32,14 @@
 - [x] Escribir tests de integración para el repositorio de base de datos de pacientes (con contenedor o DB local de test)
 - [x] Crear adaptador HTTP (Fiber o Gin) para exponer el endpoint de Pacientes
 - [x] Validar flujos de integración
+
+## Módulo de Citas - Infraestructura (Persistencia y HTTP)
+- [x] Crear la migración SQL `migrations/000005_create_appointments_table.up.sql` con btree_gist y RLS
+- [x] Adaptar `TestMain` en `patient_repository_test.go` para cargar la migración 000005
+- [x] Implementar el adaptador de persistencia `internal/adapters/outbound/postgres/appointment_repository.go`
+- [x] Crear pruebas de integración en `internal/adapters/outbound/postgres/appointment_repository_test.go`
+- [x] Implementar el adaptador HTTP handler `internal/adapters/inbound/http/appointment_handler.go`
+- [x] Registrar las rutas de citas en `main.go`
+- [x] Escribir pruebas unitarias del controlador HTTP en `internal/adapters/inbound/http/appointment_handler_test.go`
+- [x] Verificar que toda la suite de pruebas unitarias y de integración pase correctamente (Rojo-Verde-Refactor)
+
