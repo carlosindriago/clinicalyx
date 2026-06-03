@@ -32,7 +32,7 @@ CREATE POLICY patient_tenant_isolation_policy ON patients
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'clinicalyx_app_user') THEN
-        CREATE ROLE clinicalyx_app_user WITH LOGIN PASSWORD 'clinicalyx_app_secure_pass_2026';
+        CREATE ROLE clinicalyx_app_user WITH LOGIN PASSWORD 'clinicalyx_app_dev_password';
     END IF;
 END
 $$;

@@ -1,0 +1,13 @@
+title = "Clinicalyx Gitleaks Configuration"
+
+[allowlist]
+description = "Allow documented development-only placeholders in .env.example"
+regexes = [
+  '''ENCRYPTION_KEY=(0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef|change_me_32_byte_encryption_key)''',
+  '''BLIND_INDEX_SALT=change_me_32_plus_chars_blind_index_salt''',
+  '''JWT_SECRET=change_me_32_plus_chars_jwt_signing_secret''',
+  '''DATABASE_URL=postgres://clinicalyx_app_user:clinicalyx_app_dev_password@localhost:5432/clinicalyx\?sslmode=disable'''
+]
+paths = [
+  '''(^|/)\.env\.example$'''
+]

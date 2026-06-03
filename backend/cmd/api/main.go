@@ -58,7 +58,11 @@ func main() {
 	passwordHasher := crypto.NewArgon2idPasswordHasher()
 
 	// 5. Inicializar Servicio de Tokens JWT y Middleware de Autenticación
-	jwtService := crypto.NewJWTService(cfg.EncryptionKey, 15*time.Minute, 24*time.Hour)
+	jwtService := crypto.NewJWTService(
+		cfg.JWTSecret,
+		time.Duration(cfg.JWTAccessDurationMinutes)*time.Minute,
+		time.Duration(cfg.JWTRefreshDurationDays)*24*time.Hour,
+	)
 	authMiddleware := inboundHTTP.NewAuthMiddleware(jwtService, sessionRepo)
 
 	// 6. Inicializar Casos de Uso
@@ -106,7 +110,7 @@ func main() {
 
 	// CORS Config
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Ajustar según conveniencia de seguridad en producción
+		AllowedOrigins:   cfg.CORSAllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
 		ExposedHeaders:   []string{"Link"},

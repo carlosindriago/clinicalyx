@@ -3,14 +3,18 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
 	"clinicalyx/backend/internal/adapters/crypto"
 	"clinicalyx/backend/internal/core/domain"
 	_ "github.com/lib/pq"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
 var testDB *sql.DB  // Conexión restringida de aplicación
@@ -18,27 +22,16 @@ var adminDB *sql.DB // Conexión superusuario de administración para limpieza y
 var cryptoService *crypto.CryptoService
 
 func TestMain(m *testing.M) {
-	// DSN de conexión de superusuario (admin)
-	adminURL := os.Getenv("DATABASE_URL")
-	if adminURL == "" {
-		adminURL = "postgres://carlos:clinicalyx_secure_pass_2026@localhost:5432/clinicalyx?sslmode=disable"
-	}
+	ctx := context.Background()
 
-	var err error
-	// Conectar a la base de datos de administración
-	for i := 0; i < 5; i++ {
-		adminDB, err = sql.Open("postgres", adminURL)
-		if err == nil {
-			err = adminDB.Ping()
-			if err == nil {
-				break
-			}
-		}
-		time.Sleep(2 * time.Second)
-	}
-
+	container, adminURL, err := startPostgresContainer(ctx)
 	if err != nil {
-		panic("No se pudo conectar a la base de datos de administración: " + err.Error())
+		panic("No se pudo iniciar PostgreSQL con Testcontainers: " + err.Error())
+	}
+
+	adminDB, err = openDatabase(adminURL)
+	if err != nil {
+		panic("No se pudo conectar a la base de datos de administración del contenedor: " + err.Error())
 	}
 
 	// Inicializar CryptoService de pruebas
@@ -49,72 +42,110 @@ func TestMain(m *testing.M) {
 		panic("No se pudo inicializar CryptoService de pruebas: " + err.Error())
 	}
 
-	// Ejecutar script de migración SQL usando adminDB
-	migPath1 := filepath.Join("..", "..", "..", "..", "migrations", "000001_create_patients_table.up.sql")
-	sqlBytes1, err := os.ReadFile(migPath1)
-	if err != nil {
-		panic("No se pudo leer el archivo de migración SQL en " + migPath1 + ": " + err.Error())
+	if err := applyMigrations(adminDB); err != nil {
+		panic("No se pudieron aplicar migraciones en PostgreSQL efímero: " + err.Error())
 	}
 
-	migPath2 := filepath.Join("..", "..", "..", "..", "migrations", "000002_create_auth_tables.up.sql")
-	sqlBytes2, err := os.ReadFile(migPath2)
+	appURL, err := applicationDatabaseURL(adminURL)
 	if err != nil {
-		panic("No se pudo leer el archivo de migración SQL en " + migPath2 + ": " + err.Error())
-	}
-
-	migPath4 := filepath.Join("..", "..", "..", "..", "migrations", "000004_create_consultations_table.up.sql")
-	sqlBytes4, err := os.ReadFile(migPath4)
-	if err != nil {
-		panic("No se pudo leer el archivo de migración SQL en " + migPath4 + ": " + err.Error())
-	}
-
-	migPath5 := filepath.Join("..", "..", "..", "..", "migrations", "000005_create_appointments_table.up.sql")
-	sqlBytes5, err := os.ReadFile(migPath5)
-	if err != nil {
-		panic("No se pudo leer el archivo de migración SQL en " + migPath5 + ": " + err.Error())
-	}
-
-	_, err = adminDB.Exec("DROP TABLE IF EXISTS appointments CASCADE; DROP TABLE IF EXISTS consultations CASCADE; DROP TABLE IF EXISTS sessions CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS patients CASCADE;")
-	if err != nil {
-		panic("Error limpiando tablas existentes en BD de test: " + err.Error())
-	}
-
-	_, err = adminDB.Exec(string(sqlBytes1))
-	if err != nil {
-		panic("Error ejecutando migración de pacientes en base de datos de test: " + err.Error())
-	}
-
-	_, err = adminDB.Exec(string(sqlBytes2))
-	if err != nil {
-		panic("Error ejecutando migración de auth en base de datos de test: " + err.Error())
-	}
-
-	_, err = adminDB.Exec(string(sqlBytes4))
-	if err != nil {
-		panic("Error ejecutando migración de consultas en base de datos de test: " + err.Error())
-	}
-
-	_, err = adminDB.Exec(string(sqlBytes5))
-	if err != nil {
-		panic("Error ejecutando migración de citas en base de datos de test: " + err.Error())
+		panic("No se pudo construir DSN del rol de aplicación: " + err.Error())
 	}
 
 	// Ahora inicializamos testDB como el usuario de aplicación clinicalyx_app_user (no-superusuario)
-	appURL := "postgres://clinicalyx_app_user:clinicalyx_app_secure_pass_2026@localhost:5432/clinicalyx?sslmode=disable"
-	testDB, err = sql.Open("postgres", appURL)
+	testDB, err = openDatabase(appURL)
 	if err != nil {
-		panic("No se pudo instanciar la conexión de aplicación: " + err.Error())
-	}
-
-	if err = testDB.Ping(); err != nil {
-		panic("No se pudo verificar la conexión del rol de aplicación: " + err.Error())
+		panic("No se pudo instanciar/verificar la conexión de aplicación: " + err.Error())
 	}
 
 	code := m.Run()
 
-	testDB.Close()
-	adminDB.Close()
+	if testDB != nil {
+		testDB.Close()
+	}
+	if adminDB != nil {
+		adminDB.Close()
+	}
+	if container != nil {
+		if err := container.Terminate(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "error terminando contenedor PostgreSQL: %v\n", err)
+		}
+	}
+
 	os.Exit(code)
+}
+
+func startPostgresContainer(ctx context.Context) (*tcpostgres.PostgresContainer, string, error) {
+	container, err := tcpostgres.Run(
+		ctx,
+		"postgres:16-alpine",
+		tcpostgres.WithDatabase("clinicalyx"),
+		tcpostgres.WithUsername("postgres"),
+		tcpostgres.WithPassword("postgres"),
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	adminURL, err := container.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		_ = container.Terminate(ctx)
+		return nil, "", err
+	}
+
+	return container, adminURL, nil
+}
+
+func openDatabase(databaseURL string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", databaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < 10; i++ {
+		if err = db.Ping(); err == nil {
+			return db, nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	_ = db.Close()
+	return nil, err
+}
+
+func applyMigrations(db *sql.DB) error {
+	migrationsDir := filepath.Join("..", "..", "..", "..", "migrations")
+	migrationPaths, err := filepath.Glob(filepath.Join(migrationsDir, "*.up.sql"))
+	if err != nil {
+		return fmt.Errorf("buscar migraciones: %w", err)
+	}
+	if len(migrationPaths) == 0 {
+		return fmt.Errorf("no se encontraron migraciones .up.sql en %s", migrationsDir)
+	}
+
+	sort.Strings(migrationPaths)
+
+	for _, migrationPath := range migrationPaths {
+		sqlBytes, err := os.ReadFile(migrationPath)
+		if err != nil {
+			return fmt.Errorf("leer migración %s: %w", migrationPath, err)
+		}
+
+		if _, err := db.Exec(string(sqlBytes)); err != nil {
+			return fmt.Errorf("ejecutar migración %s: %w", filepath.Base(migrationPath), err)
+		}
+	}
+
+	return nil
+}
+
+func applicationDatabaseURL(adminURL string) (string, error) {
+	parsedURL, err := url.Parse(adminURL)
+	if err != nil {
+		return "", err
+	}
+
+	parsedURL.User = url.UserPassword("clinicalyx_app_user", "clinicalyx_app_dev_password")
+	return parsedURL.String(), nil
 }
 
 func cleanDatabase(t *testing.T) {

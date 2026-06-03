@@ -3,20 +3,22 @@ package config
 import (
 	"fmt"
 	"log"
+
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 )
 
 // Config define la estructura de variables de entorno de la aplicación.
 type Config struct {
-	Port                     string `envconfig:"PORT" default:"8080"`
-	Env                      string `envconfig:"ENV" default:"development"`
-	DatabaseURL              string `envconfig:"DATABASE_URL" required:"true"`
-	EncryptionKey            string `envconfig:"ENCRYPTION_KEY" required:"true"`
-	BlindIndexSalt           string `envconfig:"BLIND_INDEX_SALT" required:"true"`
-	JWTSecret                string `envconfig:"JWT_SECRET" required:"true"`
-	JWTAccessDurationMinutes int    `envconfig:"JWT_ACCESS_DURATION_MINUTES" default:"15"`
-	JWTRefreshDurationDays   int    `envconfig:"JWT_REFRESH_DURATION_DAYS" default:"7"`
+	Port                     string   `envconfig:"PORT" default:"8080"`
+	Env                      string   `envconfig:"ENV" default:"development"`
+	DatabaseURL              string   `envconfig:"DATABASE_URL" required:"true"`
+	EncryptionKey            string   `envconfig:"ENCRYPTION_KEY" required:"true"`
+	BlindIndexSalt           string   `envconfig:"BLIND_INDEX_SALT" required:"true"`
+	JWTSecret                string   `envconfig:"JWT_SECRET" required:"true"`
+	JWTAccessDurationMinutes int      `envconfig:"JWT_ACCESS_DURATION_MINUTES" default:"15"`
+	JWTRefreshDurationDays   int      `envconfig:"JWT_REFRESH_DURATION_DAYS" default:"7"`
+	CORSAllowedOrigins       []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"http://localhost:3000"`
 }
 
 // Load carga la configuración desde el archivo .env (si existe) y del entorno de ejecución.

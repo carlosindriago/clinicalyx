@@ -10,6 +10,8 @@ import (
 )
 
 func TestPostgresConsultationRepository_Integration(t *testing.T) {
+	cleanDatabase(t)
+
 	tenantID1 := domain.NewTenantID()
 	tenantID2 := domain.NewTenantID()
 	doctorID := domain.NewUserID()
@@ -49,7 +51,7 @@ func TestPostgresConsultationRepository_Integration(t *testing.T) {
 			tenantID1,
 			patient1.ID(),
 			doctorID,
-			time.Now().Add(-1 * time.Hour),
+			time.Now().Add(-1*time.Hour),
 			"CIE-E10",
 			"Notas clínicas del paciente 1. Estado estable.",
 			json.RawMessage(`{"tags":["endocrinology"]}`),
@@ -92,7 +94,7 @@ func TestPostgresConsultationRepository_Integration(t *testing.T) {
 	t.Run("🚨 PRUEBA DE FUEGO RLS: Aislamiento estricto de consultas médicas entre Tenants", func(t *testing.T) {
 		// Contexto del Tenant 1 intentando listar consultas del paciente del Tenant 2
 		ctxTenant1 := context.WithValue(context.Background(), "tenant_id", tenantID1)
-		
+
 		// Registrar consulta para paciente 2 bajo Tenant 2
 		ctxTenant2 := context.WithValue(context.Background(), "tenant_id", tenantID2)
 		c2, _ := domain.NewConsultation(

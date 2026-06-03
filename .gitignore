@@ -1,13 +1,51 @@
-# Go dependency directories
-/backend/bin/
-/backend/vendor/
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 
-# Node dependency directories
-/frontend/node_modules/
-/frontend/.next/
-/frontend/out/
+# Node / Next.js
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+out/
+**/out/
+dist/
+**/dist/
+.turbo/
+**/.turbo/
+.vercel/
+**/.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# IDE files
+# Go build outputs and caches
+bin/
+**/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+vendor/
+**/vendor/
+
+# Tooling caches
+.cache/
+**/.cache/
+.pytest_cache/
+tmp/
+**/tmp/
+
+# IDE / editor files
 .idea/
 .vscode/
 *.suo
@@ -15,15 +53,9 @@
 *.njsproj
 *.sln
 *.swp
+*.swo
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# OS/Logs
+# OS / logs
 .DS_Store
 Thumbs.db
 *.log

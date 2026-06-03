@@ -64,8 +64,13 @@ export default function LoginPage() {
 
       // Redirigir al dashboard tras login exitoso
       router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Error al intentar iniciar sesión");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Error al intentar iniciar sesión";
+
+      setError(message);
     } finally {
       setIsLoading(false);
     }

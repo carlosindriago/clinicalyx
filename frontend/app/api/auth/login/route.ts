@@ -56,8 +56,13 @@ export async function POST(request: NextRequest) {
     }
 
     return nextResponse;
-  } catch (error: any) {
-    console.error("Error en proxy de login:", error);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Error desconocido en proxy de login";
+
+    console.error("Error en proxy de login:", message);
     return NextResponse.json(
       { error: "Error interno en el servidor de enlace (Proxy)" },
       { status: 500 }

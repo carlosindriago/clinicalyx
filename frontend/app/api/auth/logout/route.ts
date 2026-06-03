@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+type JwtPayload = {
+  tenant_id?: unknown;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const accessToken = request.cookies.get("access_token")?.value;
@@ -17,10 +21,18 @@ export async function POST(request: NextRequest) {
       const payloadPart = accessToken.split(".")[1];
       const decodedPayload = JSON.parse(
         Buffer.from(payloadPart, "base64").toString("utf-8")
-      );
-      tenantID = decodedPayload.tenant_id;
-    } catch (e) {
-      console.error("Error al parsear el token JWT en logout proxy:", e);
+      ) as JwtPayload;
+
+      if (typeof decodedPayload.tenant_id === "string") {
+        tenantID = decodedPayload.tenant_id;
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al parsear JWT";
+
+      console.error("Error al parsear el token JWT en logout proxy:", message);
     }
 
     if (!tenantID) {
@@ -34,7 +46,7 @@ export async function POST(request: NextRequest) {
     const logoutEndpoint = `${backendUrl}/auth/logout`;
 
     // Hacer petición al backend de Go para revocar la sesión
-    const response = await fetch(logoutEndpoint, {
+    await fetch(logoutEndpoint, {
       method: "POST",
       headers: {
         "X-Tenant-ID": tenantID,
@@ -66,8 +78,13 @@ export async function POST(request: NextRequest) {
     });
 
     return nextResponse;
-  } catch (error: any) {
-    console.error("Error en proxy de logout:", error);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Error desconocido en proxy de logout";
+
+    console.error("Error en proxy de logout:", message);
     // Asegurar limpieza de cookies incluso ante fallo de red catastrófico
     const errorResponse = NextResponse.json(
       { error: "Error en el servidor de enlace (Proxy) al cerrar sesión" },
