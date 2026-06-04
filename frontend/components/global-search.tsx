@@ -15,6 +15,7 @@ export function GlobalSearch() {
 
   // Sync state with URL parameter (e.g. if cleared or changed elsewhere)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery(documentID);
   }, [documentID]);
 

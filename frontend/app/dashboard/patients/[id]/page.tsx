@@ -3,8 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ShieldCheck, Mail, Phone, CreditCard, Calendar } from "lucide-react";
 import PatientProfileTabs from "./patient-profile-tabs";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type PatientProfilePageProps = {

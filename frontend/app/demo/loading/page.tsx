@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2,
   Activity,
   AlertCircle,
   CheckCircle2,
@@ -85,8 +84,6 @@ export default function DemoLoadingPage() {
     if (hasFetched.current) return;
     hasFetched.current = true;
 
-    let active = true;
-
     const startDemoEnvironment = async () => {
       try {
         const response = await fetch("/api/demo/start", {
@@ -97,8 +94,6 @@ export default function DemoLoadingPage() {
         });
 
         const data: DemoResponse | { error: string } = await response.json();
-
-        if (!active) return;
 
         if (!response.ok) {
           throw new Error(
@@ -111,7 +106,6 @@ export default function DemoLoadingPage() {
         setDemoData(data as DemoResponse);
         setIsLoading(false);
       } catch (err: unknown) {
-        if (!active) return;
         const message =
           err instanceof Error
             ? err.message
@@ -122,10 +116,6 @@ export default function DemoLoadingPage() {
     };
 
     startDemoEnvironment();
-
-    return () => {
-      active = false;
-    };
   }, []);
 
   // Función para copiar texto al portapapeles de forma amigable

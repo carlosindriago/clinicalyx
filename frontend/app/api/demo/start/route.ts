@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Obtener la URL de conexión del backend desde variables de entorno
     const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";

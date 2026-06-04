@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type PatientResponse = {
-  id?: string;
-  tenant_id?: string;
-  name?: string;
-  document_type?: string;
-  document_value?: string;
-  email?: string;
-  phone?: string;
-  date_of_birth?: string;
-};
+
 
 type BackendErrorResponse = {
   error?: unknown;

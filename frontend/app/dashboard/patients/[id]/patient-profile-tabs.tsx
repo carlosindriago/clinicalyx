@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShieldCheck, Calendar, Activity, FileText, CheckCircle2, Loader2 } from "lucide-react";
+import { Activity, FileText, CheckCircle2, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -155,7 +154,7 @@ export default function PatientProfileTabs({ patient }: PatientProfileTabsProps)
       
       // Agregar al historial local
       const newConsultation: MockConsultation = {
-        id: String(Date.now()),
+        id: crypto.randomUUID(),
         date: new Date().toISOString().split("T")[0],
         diagnosticCode: getDiagnosticLabel(values.diagnosticCode),
         notes: values.notes,

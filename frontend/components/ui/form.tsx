@@ -33,10 +33,12 @@ const FormField = <
 >({
   ...props
 }: Omit<ControllerProps<TFieldValues, TName>, "control"> & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control?: Control<TFieldValues, any, any>
 }) => {
   return (
     <FormFieldContext.Provider value={{ name: props.name }}>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <Controller {...(props as any)} />
     </FormFieldContext.Provider>
   )
