@@ -57,6 +57,10 @@ func (h *DemoHandler) StartDemo(w http.ResponseWriter, r *http.Request) {
 	tenantName := fmt.Sprintf("Portfolio Demo - %s", shortUUID)
 	expiresAt := time.Now().Add(2 * time.Hour)
 
+	adminEmail := fmt.Sprintf("admin-%s@demo.com", shortUUID)
+	doctorEmail := fmt.Sprintf("doctor-%s@demo.com", shortUUID)
+	receptionistEmail := fmt.Sprintf("frontdesk-%s@demo.com", shortUUID)
+
 	// 2. Registrar el tenant efímero en la base de datos
 	_, err := h.db.ExecContext(r.Context(), `
 		INSERT INTO tenants (id, name, is_demo, expires_at)
@@ -85,21 +89,21 @@ func (h *DemoHandler) StartDemo(w http.ResponseWriter, r *http.Request) {
 		{
 			firstName: "Admin",
 			lastName:  "Clinicalyx",
-			email:     "admin@clinicalyx.com",
+			email:     adminEmail,
 			phone:     "+56900000001",
 			role:      domain.UserRoleSuperAdmin,
 		},
 		{
 			firstName: "John",
 			lastName:  "Smith",
-			email:     "dr.smith@clinicalyx.com",
+			email:     doctorEmail,
 			phone:     "+56900000002",
 			role:      domain.UserRoleDoctor,
 		},
 		{
 			firstName: "Front",
 			lastName:  "Desk",
-			email:     "frontdesk@clinicalyx.com",
+			email:     receptionistEmail,
 			phone:     "+56900000003",
 			role:      domain.UserRoleReceptionist,
 		},
@@ -194,7 +198,7 @@ func (h *DemoHandler) StartDemo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Inyectar 2 Citas Médicas para Hoy en el Futuro
-	doctorID := createdUsers["dr.smith@clinicalyx.com"]
+	doctorID := createdUsers[doctorEmail]
 	now := time.Now()
 	start1 := now.Add(1 * time.Hour).Truncate(time.Minute)
 	end1 := start1.Add(30 * time.Minute)
@@ -295,9 +299,9 @@ func (h *DemoHandler) StartDemo(w http.ResponseWriter, r *http.Request) {
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 		"credentials": map[string]string{
-			"admin_email":       "admin@clinicalyx.com",
-			"doctor_email":      "dr.smith@clinicalyx.com",
-			"receptionist_email": "frontdesk@clinicalyx.com",
+			"admin_email":       adminEmail,
+			"doctor_email":      doctorEmail,
+			"receptionist_email": receptionistEmail,
 			"password":          "password123",
 		},
 	})
