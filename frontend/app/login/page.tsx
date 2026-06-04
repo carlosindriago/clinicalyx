@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  Building2, 
   Mail, 
   Lock, 
   Eye, 
@@ -11,7 +10,8 @@ import {
   Loader2, 
   Activity, 
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,6 @@ export default function LoginPage() {
   const router = useRouter();
   
   // Estados del formulario
-  const [tenantId, setTenantId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -48,7 +47,6 @@ export default function LoginPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Tenant-ID": tenantId.trim(),
         },
         body: JSON.stringify({
           email: email.trim(),
@@ -120,24 +118,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Input de Tenant ID */}
-              <div className="space-y-1.5">
-                <Label htmlFor="tenantId" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  ID de Organización (Tenant UUID)
-                </Label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <Input
-                    id="tenantId"
-                    type="text"
-                    required
-                    placeholder="e.g. d3b07384-d113-4956-be08-dde9d26d4591"
-                    value={tenantId}
-                    onChange={(e) => setTenantId(e.target.value)}
-                    className="pl-10 bg-slate-900/60 border-slate-800 text-white placeholder-slate-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 transition-all rounded-lg text-sm"
-                  />
-                </div>
-              </div>
+
 
               {/* Input de Email */}
               <div className="space-y-1.5">
@@ -207,6 +188,31 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
+
+              {process.env.NEXT_PUBLIC_ENABLE_EPHEMERAL_DEMO === "true" && (
+                <>
+                  {/* Divisor Visual */}
+                  <div className="relative my-4 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-800/80" />
+                    </div>
+                    <span className="relative z-10 bg-[#0d0d11] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      o accede al sandbox
+                    </span>
+                  </div>
+
+                  {/* Botón Interactivo de Demo */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push("/demo/loading")}
+                    className="w-full border-emerald-500/30 hover:border-emerald-500/60 hover:bg-emerald-950/20 text-emerald-400 font-semibold transition-all duration-300 py-5 rounded-lg flex items-center justify-center gap-2 cursor-pointer group"
+                  >
+                    <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400 group-hover:scale-110 transition-transform" />
+                    <span>Try Interactive Demo</span>
+                  </Button>
+                </>
+              )}
             </form>
           </CardContent>
 
