@@ -43,6 +43,23 @@ func main() {
 	}
 	log.Println("Conexión a la base de datos PostgreSQL establecida con éxito.")
 
+	// Iniciar el recolector de basura (Grim Reaper) para eliminar tenants de prueba expirados cada 15 minutos
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		for range ticker.C {
+			log.Println("[Grim Reaper] Buscando y eliminando tenants demo expirados...")
+			result, err := db.Exec("DELETE FROM tenants WHERE is_demo = true AND expires_at < NOW()")
+			if err != nil {
+				log.Printf("[Grim Reaper] Error al eliminar tenants expirados: %v", err)
+			} else {
+				rows, _ := result.RowsAffected()
+				if rows > 0 {
+					log.Printf("[Grim Reaper] Se eliminaron %d inquilinos de prueba expirados en cascada.", rows)
+				}
+			}
+		}
+	}()
+
 	// 3. Inicializar Servicio de Criptografía
 	cryptoService, err := crypto.NewCryptoService(cfg.EncryptionKey, cfg.BlindIndexSalt)
 	if err != nil {
@@ -67,6 +84,7 @@ func main() {
 
 	// 6. Inicializar Casos de Uso
 	createPatientUC := usecases.NewCreatePatientUseCase(patientRepo)
+	getPatientUC := usecases.NewGetPatientUseCase(patientRepo)
 	setupTenantUC := usecases.NewSetupTenantUseCase(userRepo, passwordHasher)
 	loginUC := usecases.NewLoginUseCase(userRepo, sessionRepo, passwordHasher)
 	logoutUC := usecases.NewLogoutUseCase(sessionRepo)
@@ -77,7 +95,7 @@ func main() {
 	cancelAppointmentUC := usecases.NewCancelAppointmentUseCase(appointmentRepo)
 
 	// 7. Inicializar Controladores HTTP (Adaptadores de entrada)
-	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC)
+	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC, getPatientUC)
 	authHandler := inboundHTTP.NewAuthHandler(
 		setupTenantUC,
 		loginUC,
@@ -123,6 +141,18 @@ func main() {
 	authHandler.RegisterRoutes(r)
 	consultationHandler.RegisterRoutes(r)
 	appointmentHandler.RegisterRoutes(r)
+
+	// Condicionalmente registrar Ephemeral Demo Handler protegido por el Kill Switch y el Rate Limiter
+	if cfg.EnableEphemeralDemo {
+		demoHandler := inboundHTTP.NewDemoHandler(db, cryptoService, passwordHasher, jwtService, sessionRepo)
+		r.Group(func(r chi.Router) {
+			r.Use(inboundHTTP.NewDemoRateLimiter())
+			demoHandler.RegisterRoutes(r)
+		})
+		log.Println("Módulo Ephemeral Demo Mode habilitado en /api/v1/demo/start")
+	} else {
+		log.Println("Módulo Ephemeral Demo Mode desactivado (Kill Switch activo)")
+	}
 
 	// Iniciar Servidor
 	log.Printf("Servidor escuchando en el puerto %s en entorno: %s", cfg.Port, cfg.Env)

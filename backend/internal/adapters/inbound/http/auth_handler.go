@@ -69,7 +69,7 @@ func NewAuthHandler(
 // RegisterRoutes registra los endpoints de autenticación en Chi.
 func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 	r.With(TenantExtractor).Post("/api/v1/auth/setup", h.SetupTenant)
-	r.With(TenantExtractor).Post("/api/v1/auth/login", h.Login)
+	r.With(TenantExtractor, NewLoginRateLimiter()).Post("/api/v1/auth/login", h.Login)
 	r.With(TenantExtractor, h.authMiddleware.Handler).Post("/api/v1/auth/logout", h.Logout)
 	r.With(TenantExtractor, h.authMiddleware.Handler).Put("/api/v1/auth/users/{id}/status", h.ToggleStatus)
 }

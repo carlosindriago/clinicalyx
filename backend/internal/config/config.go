@@ -19,6 +19,7 @@ type Config struct {
 	JWTAccessDurationMinutes int      `envconfig:"JWT_ACCESS_DURATION_MINUTES" default:"15"`
 	JWTRefreshDurationDays   int      `envconfig:"JWT_REFRESH_DURATION_DAYS" default:"7"`
 	CORSAllowedOrigins       []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"http://localhost:3000"`
+	EnableEphemeralDemo      bool     `envconfig:"ENABLE_EPHEMERAL_DEMO" default:"false"`
 }
 
 // Load carga la configuración desde el archivo .env (si existe) y del entorno de ejecución.
