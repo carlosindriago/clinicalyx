@@ -1,195 +1,167 @@
-# Clinicalyx Community Edition - Open Core Clinical Management
+# Clinicalyx Community Edition v1.1 - Open Core Clinical Management
 
-[![CI](https://github.com/carlosindriago/Clinicalix/actions/workflows/ci.yml/badge.svg)](https://github.com/carlosindriago/Clinicalix/actions/workflows/ci.yml)
+[![CI](https://github.com/carlosindriago/clinicalyx/actions/workflows/ci.yml/badge.svg)](https://github.com/carlosindriago/clinicalyx/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go)](backend/go.mod)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-black?logo=nextdotjs)](frontend/package.json)
 
-Clinicalyx Community Edition is a security-first, open-core clinical management platform for clinics, healthcare teams, and engineering teams that care about strong software architecture.
+Clinicalyx is a security-first, open-core clinical management platform designed for clinics, medical centers, and engineering teams that demand high-quality software architecture and strict compliance standards.
 
-It is built as a modern monorepo with a Go backend, a Next.js frontend, PostgreSQL security primitives, and a strict engineering discipline around Hexagonal Architecture, TDD, and public-readiness.
+Built as a modern monorepo, Clinicalyx combines a robust Go backend and a responsive Next.js frontend with enterprise-grade security primitives, PostgreSQL RLS, and a strict adherence to Hexagonal Architecture and TDD.
 
 > [!IMPORTANT]
-> Clinicalyx CE is currently **Alpha software**. It is designed with a security-first architecture, but it does **not** automatically guarantee HIPAA, SOC 2, GDPR, ISO 27001, or any other regulatory compliance. Compliance depends on deployment architecture, operational controls, policies, audits, vendor management, and legal review.
+> Clinicalyx CE is currently **Alpha software**. While designed with a security-first architecture, it does **not** automatically guarantee HIPAA, SOC 2, GDPR, ISO 27001, or other regulatory compliance. Compliance depends on your specific deployment architecture, operational controls, auditing policies, and legal review.
 
-## Why Clinicalyx?
+---
 
-Clinical systems handle sensitive operational and patient data. The default answer cannot be “just add an ORM and hope for the best.” Clinicalyx treats security and isolation as architectural foundations, not optional middleware.
+## Technical Architecture & Design Pillars
 
-## Features
+### 1. Hexagonal Architecture (Ports & Adapters)
+The Go backend is structured using Hexagonal Architecture. The core business rules and domain aggregates (`Patient`, `Appointment`, `User`, `Consultation`) are entirely isolated in `internal/core/domain` and `usecases`. They do not depend on HTTP frameworks, SQL drivers, or third-party crypto packages. All external boundaries are defined via abstract ports (`internal/core/ports`), allowing database drivers, HTTP routers (Chi), and cryptographic layers to be swapped or tested independently.
 
-| Area | Capability |
-|------|------------|
-| Multi-tenancy | PostgreSQL Row-Level Security (RLS) isolates tenant data at the database engine level. |
-| Sensitive data protection | AES-256-GCM application-level encryption protects sensitive fields at rest. |
-| Search over encrypted data | Blind Indexing with HMAC-SHA256 enables deterministic exact-match search without storing plaintext. |
-| Architecture | Hexagonal Architecture separates domain logic from HTTP, persistence, crypto, and framework concerns. |
-| Authentication | JWT-based authentication with HttpOnly cookies and session persistence. |
-| Scheduling | Appointment scheduling with PostgreSQL exclusion constraints to prevent doctor availability overlaps. |
-| Frontend | Next.js App Router with TypeScript, shadcn/ui, Tailwind CSS, and dark/light mode. |
-| Testing | Go integration tests use Testcontainers with ephemeral PostgreSQL 16 and real migrations. |
-| CI | GitHub Actions runs backend tests plus frontend lint and build checks. |
-| Governance | AGPL-3.0 license, security policy, contribution guide, ADRs, threat model, and rollback migrations. |
+The frontend is built on **Next.js (App Router)** with TypeScript, leveraging server-side cookie-based JWT authorization, Server Components for secure pages, and Client Components for rich interactive clinical interfaces.
 
-## Architecture at a Glance
+### 2. Multi-Tenant Isolation with PostgreSQL RLS
+Clinicalyx enforces strict multi-tenancy at the database engine layer. Database queries execute under a restricted PostgreSQL user role (`clinicalyx_app_user`) and inject the active tenant ID into the transaction context using `ExecuteInTenantTx`. PostgreSQL RLS policies evaluate the active tenant for every query, preventing Cross-Tenant data leaks (IDOR attacks) at the engine level even if application-layer filters are omitted.
+
+### 3. Application-Level Cryptography & Blind Indexing
+To safeguard Protected Health Information (PHI) and meet privacy laws:
+* **AES-256-GCM Encryption:** Free-text clinical notes, treatment records, and patient identifiers are encrypted in Go before write operations. A KMS manages key wrapping, and random nonces guarantee that ciphertext is non-deterministic.
+* **HMAC-SHA256 Blind Indexing:** Encrypted fields cannot be searched using SQL `LIKE`. Clinicalyx normalizes patient identifiers (such as DNI/Passport) and emails, hashing them into a **Blind Index** (`idx_patients_document_blind`). This allows fast exact-match lookup in $O(1)$ without storing plaintext.
+
+### 4. Role-Based Access Control (RBAC) & Privacy Wall
+Sprint 1 implements role-based privacy walls across data routes:
+* **Conditional DTO Projections:** Endpoints project data based on the caller's JWT role. If the caller is a `RECEPTIONIST`, the backend returns `PatientPublicDTO` (masking medical history, clinical notes, and metadata). Only `DOCTOR` or `SUPERADMIN` receive the complete `PatientClinicalDTO`.
+* **Doctor-Patient Isolation:** Doctors are restricted to querying and viewing patients who have (or have had) an active appointment scheduled with them via an `INNER JOIN appointments` query in the patient repository.
+
+### 5. Hardened 2FA / TOTP Authentication
+Clinicalyx features mandatory two-factor authentication:
+* Upon first login, users with `two_factor_enabled = false` are redirected to `/auth/mfa-setup`.
+* The backend generates a secure TOTP secret, encrypts it with **AES-256-GCM** in the database, and exposes a QR code.
+* To activate the flag permanently, users must verify a valid one-time code. A cryptographic recovery key protocol ensures emergency account retrieval.
+
+---
+
+## Ephemeral Demo Sandbox (Portfolio Mode)
+
+Clinicalyx includes an **Ephemeral Demo Mode** designed for public showcase, portfolio hosting, and interactive visitor validation.
+
+### How it Works
+1. **Dynamic Sandbox Provisioning:** When a visitor clicks *"Try Interactive Demo"*, the system executes `POST /api/v1/demo/start`. The Go backend dynamically generates a temporary `TenantID`, registers it in the `tenants` table with an expiration timestamp of 2 hours, and runs a seed script.
+2. **Mock Data Seeding:** The sandbox tenant is automatically populated with a mock clinic profile, staff accounts (`SUPERADMIN`, `DOCTOR`, `RECEPTIONIST`), 3 mock patients (complete with blind indexes), and 2 upcoming appointments.
+3. **Auto-Login:** The handler issues a JWT token for the `DOCTOR` account and returns it, setting secure `HttpOnly`, `Secure`, and `SameSite=Strict` cookies in the visitor's browser.
+4. **The Grim Reaper (Garbage Collector):** A background goroutine runs in the API server every 15 minutes. It executes:
+   ```sql
+   DELETE FROM tenants WHERE is_demo = true AND expires_at < NOW();
+   ```
+   Because all related tables (`users`, `patients`, `appointments`, `sessions`, `consultations`) have foreign keys configured with `ON DELETE CASCADE`, expired demo sandboxes and their clinical data are permanently purged in a single atomic transaction.
+
+### Configuration & Activation
+To activate the interactive demo sandbox, set the following environment variables:
+
+* **Backend (`backend/.env`):**
+  ```env
+  ENABLE_EPHEMERAL_DEMO=true
+  ```
+  *(Activates the backend route `/api/v1/demo/start` protected by a strict IP-based rate limiter).*
+
+* **Frontend (`frontend/.env.local`):**
+  ```env
+  NEXT_PUBLIC_ENABLE_EPHEMERAL_DEMO=true
+  ```
+  *(Instructs Next.js to render the visual divider and the "Try Interactive Demo" button on the Login screen).*
+
+> [!CAUTION]
+> **PRODUCTION WARNING & SECURITY HAZARD**
+> The Ephemeral Demo Sandbox features database bypasses and auto-login mechanisms specifically tailored for portfolio showcases.
+> **You MUST ensure that `ENABLE_EPHEMERAL_DEMO` and `NEXT_PUBLIC_ENABLE_EPHEMERAL_DEMO` are set to `false` in any real, production-ready, or shared-tenant deployment.** Leaving this feature enabled on a production instance will allow unauthorized users to register demo sandbox tenants on your server.
+
+---
+
+## Directory Structure
 
 ```text
 clinicalyx/
-├── backend/              # Go API
-│   ├── cmd/api/          # Composition root
-│   ├── migrations/       # PostgreSQL schema, RLS policies, rollbacks
+├── backend/              # Go API Server
+│   ├── cmd/api/          # Composition root & Server startup
+│   ├── cmd/seed/         # Seeding commands for local development
+│   ├── migrations/       # PostgreSQL schema migrations & RLS policies
 │   └── internal/
-│       ├── core/         # Domain, ports, and use cases
-│       ├── adapters/     # HTTP, PostgreSQL, crypto adapters
-│       └── config/       # Environment-driven configuration
-├── frontend/             # Next.js application
-│   ├── app/              # App Router routes and route handlers
-│   └── components/       # UI and layout components
-├── docs/                 # Architecture and security documentation
-├── .github/workflows/    # CI pipeline
-└── docker-compose.yml    # Local development services
+│       ├── core/         # Core business logic (Domain, Usecases, Ports)
+│       └── adapters/     # Inbound (HTTP controllers) & Outbound (Postgres repos, crypto)
+├── frontend/             # Next.js Application
+│   ├── app/              # App Router Pages & API Route Handlers
+│   ├── components/       # UI Components (shadcn/ui, Tailwind CSS)
+│   └── lib/              # Client-side utility functions
+├── docs/                 # Architectural Decision Records (ADRs) & Threat Models
+└── docker-compose.yml    # Development environment PostgreSQL configuration
 ```
 
-## Security Model
-
-Clinicalyx CE currently focuses on these foundational controls:
-
-### PostgreSQL RLS for tenant isolation
-
-Application queries run under a restricted database role and set the active tenant inside the transaction. RLS policies enforce tenant boundaries inside PostgreSQL, reducing reliance on application-layer filtering alone.
-
-### AES-256-GCM encryption at rest
-
-Sensitive fields are encrypted before persistence using authenticated encryption. Random nonces make ciphertext non-deterministic, protecting repeated values from direct correlation.
-
-### Blind Indexing for exact lookup
-
-Encrypted fields cannot be queried directly. Clinicalyx derives blind indexes using HMAC-SHA256 over normalized values so exact-match searches can remain efficient without exposing plaintext.
-
-### Hexagonal Architecture
-
-The domain model and use cases do not depend on HTTP frameworks, SQL drivers, or UI concerns. This keeps clinical business rules testable, portable, and easier to audit.
-
-Read more:
-
-- [Threat Model](docs/security/threat-model.md)
-- [ADR-001: Use Hexagonal Architecture](docs/architecture/adr-001-use-hexagonal-architecture.md)
-- [ADR-002: Use PostgreSQL RLS for Tenant Isolation](docs/architecture/adr-002-use-postgres-rls-for-tenant-isolation.md)
+---
 
 ## Quick Start
 
 ### Prerequisites
+* Docker and Docker Compose
+* Go 1.25+
+* Node.js 20+
 
-- Docker and Docker Compose
-- Go 1.25+
-- Node.js 20+
-- npm
-
-### 1. Clone the repository
-
+### 1. Clone & Setup Environment
 ```bash
-git clone git@github.com:carlosindriago/Clinicalix.git
-cd Clinicalix
-```
+git clone git@github.com:carlosindriago/clinicalyx.git
+cd clinicalyx
 
-> If your intended repository name is `Clinicalyx`, update the clone URL and GitHub Actions badge before publishing. The command above uses the remote path provided for the first public push.
-
-### 2. Create local environment variables
-
-```bash
+# Configure local development environment variables
 cp .env.example .env
 cp .env.example backend/.env
 ```
 
-The values in `.env.example` are development placeholders. The root `.env` is read by Docker Compose; `backend/.env` is read when running the Go API locally. Replace all secrets before any shared, staging, or production deployment.
-
-### 3. Start local services
-
+### 2. Boot Local Services (Automated Dev Setup)
+The project includes a `Makefile` to bootstrap development. Run:
 ```bash
-docker compose up -d postgres web
+make dev
 ```
+This command will:
+1. Spin up the PostgreSQL 16 container.
+2. Wait for the database to accept connections.
+3. Apply all database migrations and RLS policies in order.
+4. Run the seed script to populate the default tenant and admin accounts.
 
-This starts PostgreSQL and the Next.js development container. The frontend is available at:
-
-```text
-http://localhost:3000
-```
-
-### 4. Apply database migrations
-
-```bash
-for migration in backend/migrations/*.up.sql; do
-  docker exec -i clinicalyx_postgres psql -U clinicalyx -d clinicalyx < "$migration"
-done
-```
-
-### 5. Run the Go API locally
-
-In another terminal:
-
+### 3. Run the Backend API
 ```bash
 cd backend
-go mod download
 go run ./cmd/api
 ```
+The API server starts on `http://localhost:8080`.
 
-The API listens on:
-
-```text
-http://localhost:8080
+### 4. Run the Next.js Frontend
+```bash
+cd frontend
+npm install
+npm run dev
 ```
+The frontend application starts on `http://localhost:3000`.
 
-### 6. Run verification checks
+---
+
+## Testing & Verification
+
+### Running Automated Tests
+Clinicalyx runs integration tests using **Testcontainers** to boot up an ephemeral database, apply migrations, and run assertions:
 
 ```bash
-# Backend
+# Run Go unit & integration tests
 cd backend
 go test -v ./...
 
-# Frontend
+# Verify Frontend TypeScript compilation
 cd ../frontend
-npm ci
-npm run lint
-npm run build
-npm audit --audit-level=moderate
+npx tsc --noEmit
 ```
 
-## Development Workflow
+---
 
-Clinicalyx follows a strict engineering workflow:
+## License & Security Reporting
 
-- **Trunk-Based Development** for small, reviewable changes.
-- **Conventional Commits** for clean history and automation.
-- **TDD-first discipline** for domain logic, persistence behavior, and security-critical flows.
-- **No secrets in Git**. Use `.env` locally and environment injection in deployed environments.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.
-
-## Public-Readiness Checklist
-
-Before publishing or opening external contributions:
-
-- [ ] Run secret scanning against the working tree and full Git history.
-- [ ] Confirm `.env`, `.env.*`, build outputs, caches, and local artifacts are ignored.
-- [ ] Rotate any credential that has ever appeared in Git history.
-- [ ] Verify CI is green on the public default branch.
-- [ ] Review [SECURITY.md](SECURITY.md) and confirm the vulnerability reporting email is monitored.
-- [ ] Keep the Alpha disclaimer visible for users and contributors.
-
-## License
-
-Clinicalyx Community Edition is released under the [GNU Affero General Public License v3.0](LICENSE).
-
-Commercial/open-core modules may be distributed separately under different terms.
-
-## Security Reporting
-
-Please do not disclose vulnerabilities through public issues before coordinated review.
-
-Report security concerns to:
-
-```text
-security@clinicalyx.com
-```
-
-See [SECURITY.md](SECURITY.md) for the coordinated disclosure policy.
+* **License:** Distributed under the [AGPL-3.0 License](LICENSE).
+* **Security Concerns:** Please do not disclose vulnerabilities via public issues. Report security concerns confidentially to [security@clinicalyx.com](mailto:security@clinicalyx.com).

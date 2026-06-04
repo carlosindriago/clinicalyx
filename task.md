@@ -43,3 +43,24 @@
 - [x] Escribir pruebas unitarias del controlador HTTP en `internal/adapters/inbound/http/appointment_handler_test.go`
 - [x] Verificar que toda la suite de pruebas unitarias y de integración pase correctamente (Rojo-Verde-Refactor)
 
+## Módulo de Pacientes y Perfil Médico (Historia Clínica)
+- [x] Crear el caso de uso `GetPatientUseCase` en `backend/internal/core/usecases/get_patient.go`
+- [x] Implementar la búsqueda por Blind Index y consulta por ID en `backend/internal/adapters/inbound/http/patient_handler.go`
+- [x] Registrar y cablear el nuevo caso de uso en `backend/cmd/api/main.go`
+- [x] Instalar componentes shadcn/ui en el frontend (`tabs`, `textarea`, `switch`, `select`)
+- [ ] Implementar la vista del Perfil del Paciente en `frontend/app/dashboard/patients/[id]/page.tsx`
+- [ ] Verificar que todo compile y que las pruebas pasen correctamente (Rojo-Verde-Refactor)
+
+## Sprint 1: RBAC (Doctor Privacy Wall) & Login UX Refactor
+- [ ] Crear la migración SQL `000014_create_global_user_lookup.up.sql` para la función `SECURITY DEFINER` de búsqueda de usuario global
+- [ ] Añadir `FindByEmailGlobal` al puerto `UserRepository` e implementar en `PostgresUserRepository`
+- [ ] Refactorizar `LoginUseCase` y el DTO de login para eliminar `TenantID`
+- [ ] Modificar `AuthHandler` en Go para quitar el middleware `TenantExtractor` de la ruta de login y no requerir `X-Tenant-ID`
+- [ ] Modificar la firma y consulta de `FindByDocument` en `PatientRepository` para filtrar por `doctor_id` si se proporciona
+- [ ] Modificar `PatientHandler` para extraer el rol del usuario autenticado y pasar el `doctor_id` al buscar pacientes si el rol es `DOCTOR`
+- [ ] Actualizar el frontend (`app/login/page.tsx`) quitando el campo `ID DE ORGANIZACIÓN` y removiendo `X-Tenant-ID` de las cabeceras
+- [ ] Actualizar el handler proxy del frontend (`app/api/auth/login/route.ts`) para no requerir `X-Tenant-ID`
+- [ ] Ejecutar y adaptar todos los tests automáticos en el backend y frontend (npx tsc --noEmit)
+
+
+

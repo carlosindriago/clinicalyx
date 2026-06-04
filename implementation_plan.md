@@ -303,3 +303,237 @@ Registra las dependencias:
   go test -v ./internal/adapters/...
   ```
 - Validar RLS y restricciones de exclusión directamente contra el Postgres de pruebas.
+
+---
+
+# Plan de Implementación: Búsqueda de Pacientes e Historia Clínica (Perfil del Paciente)
+
+Este plan detalla el diseño e implementación para completar el backend de búsqueda de pacientes mediante Blind Index (HMAC-SHA256) en Go, e implementar la interfaz de usuario para el Perfil Médico del Paciente en Next.js (shadcn/ui).
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Búsqueda mediante Blind Index**: El endpoint `GET /api/v1/patients` aceptará el query param `?document_id=...` y calculará el Blind Index del documento en memoria (Go) para hacer una búsqueda exacta indexada contra la base de datos de manera determinista, protegiendo los datos cifrados (AES-256-GCM).
+> **Server Component en Next.js**: La vista del perfil médico se implementará en `/app/dashboard/patients/[id]/page.tsx` como un Server Component, haciendo uso de componentes UI estructurados (Tabs, Textarea, Switch).
+
+## Proposed Changes
+
+### [Backend Go - Core & Use Cases]
+#### [NEW] [get_patient.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/core/usecases/get_patient.go)
+Implementa el caso de uso `GetPatientUseCase` para recuperar pacientes por ID o por documento (intentando DNI y Pasaporte de forma transparente):
+- `GetByID(ctx, tenantID, patientID)`: Recupera un paciente usando `FindByID`.
+- `GetByDocument(ctx, tenantID, docValue)`: Intenta buscar usando `FindByDocument` con tipo `DNI` y `PASSPORT` como respaldo.
+
+### [Backend Go - Inbound HTTP Adapters]
+#### [MODIFY] [patient_handler.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/inbound/http/patient_handler.go)
+Expone los endpoints GET:
+- `GET /api/v1/patients`: Acepta el query parameter `?document_id=...` para buscar y listar pacientes usando el Blind Index. Retorna un array con el paciente o un array vacío si no se encuentra.
+- `GET /api/v1/patients/{patient_id}`: Recupera un paciente específico por su ID.
+
+#### [MODIFY] [main.go](file:///home/carlos/Proyectos/clinicalyx/backend/cmd/api/main.go)
+Instancia `GetPatientUseCase` e inyecta la dependencia en `PatientHandler`.
+
+### [Frontend Next.js]
+#### [NEW] Componentes shadcn/ui
+Instalación de las dependencias nativas de shadcn/ui en `frontend/`:
+- `npx shadcn@latest add tabs textarea switch`
+
+#### [NEW] [app/dashboard/patients/[id]/page.tsx](file:///home/carlos/Proyectos/clinicalyx/frontend/app/dashboard/patients/[id]/page.tsx)
+Página Server Component del perfil del paciente:
+- **Cabecera**: Nombre, Edad (calculada de `date_of_birth` o simulada), Badge/icono de "Secure / E2E Encrypted".
+- **Tabs (shadcn)**:
+  - "Consultation History": Renderiza una línea de tiempo (timeline) estilizada con consultas anteriores (fecha, diagnóstico CIE-10, notas clínicas).
+  - "New Consultation": Formulario interactivo con un `Textarea` de notas clínicas, toggles de metadatos dinámicos ("Lab Tests Ordered", "Follow-up Required"), y un botón prominente para guardar.
+
+## Verification Plan
+
+### Automated Tests
+- Ejecutar pruebas del backend para verificar la búsqueda por Blind Index:
+  ```bash
+  go test -v ./internal/adapters/inbound/http/...
+  ```
+- Validar visualmente la correcta renderización del Perfil del Paciente en el navegador.
+
+---
+
+# Plan de Implementación: Módulo 6 - Ephemeral Demo Mode, Rate Limiting y Recolector de Basura (Grim Reaper)
+
+Este plan detalla el diseño e implementación del **Módulo 6: Ephemeral Demo Mode** en el backend de Go, asegurando políticas de Rate Limiting por IP para evitar abusos o ataques DDoS/Brute-force en un VPS público, configurando un recolector de basura automatizado para tenants demo expirados mediante cascada SQL, y protegiendo el enrutamiento con un Kill Switch configurable desde variables de entorno.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Creación de la tabla `tenants`**: Dado que actualmente el `tenant_id` se maneja de forma implícita como UUID sin clave foránea, crearemos la tabla `tenants` y agregaremos claves foráneas con `ON DELETE CASCADE` en las tablas `users`, `patients`, `appointments`, `sessions` y `consultations`. Para evitar que la migración falle en bases de datos locales ya pobladas, primero insertaremos los `tenant_id` únicos preexistentes en la nueva tabla `tenants` antes de declarar los constraints.
+>
+> **Goroutine Recolectora (Grim Reaper)**: En el arranque del servidor (`main.go`), iniciaremos un ticker en segundo plano que ejecute una consulta de eliminación física (`DELETE FROM tenants WHERE is_demo = true AND expires_at < NOW()`) cada 15 minutos, la cual eliminará en cascada atómica toda la información efímera del sandbox sin dejar rastro de datos residuales.
+>
+> **Kill Switch**: El enrutador HTTP de Go leerá la variable de entorno `ENABLE_EPHEMERAL_DEMO` (por defecto `false`). Si es `false`, la ruta de creación de demo `/api/v1/demo/start` no se registrará y responderá con `404 Not Found` en lugar de exponer la lógica desactivada.
+
+## Open Questions
+
+> [!NOTE]
+> 1. **Método de retorno del login de Demo**: ¿El endpoint de demo debe inyectar directamente la cookie HTTP-only `access_token` en el cliente (similar al flujo de login normal), o solo devolver el token JWT en el JSON de respuesta?
+>    * *Propuesta:* Haremos ambas: inyectar la cookie HTTP-only `access_token` para compatibilidad directa con el frontend y retornar el token y rol en el JSON de respuesta para mayor flexibilidad en los tests.
+> 2. **IP Rate Limiting**: Dado que los clientes detrás de balanceadores de carga o proxies reversos (como Nginx o Cloudflare) podrían verse afectados si el rate limiter usa `RemoteAddr`, implementaremos el extractor de IP para que intente leer de la cabecera `X-Forwarded-For` o `X-Real-IP` antes de hacer fallback a `RemoteAddr`. ¿Es aceptable?
+>    * *Propuesta:* Sí, es una buena práctica para producción en VPS.
+
+## Proposed Changes
+
+### [Database & Migrations]
+#### [NEW] [000013_add_demo_fields.up.sql](file:///home/carlos/Proyectos/clinicalyx/backend/migrations/000013_add_demo_fields.up.sql)
+Crea la tabla `tenants`, reconcilia los ID de tenants existentes y añade las claves foráneas con cascada:
+- Crea la tabla `tenants` si no existe con campos: `id UUID PRIMARY KEY`, `name VARCHAR(255) NOT NULL`, `is_demo BOOLEAN NOT NULL DEFAULT FALSE`, `expires_at TIMESTAMP WITH TIME ZONE`, `created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP`, `updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP`.
+- Copia de seguridad temporal y reconciliación de registros huérfanos: Inyecta los `tenant_id` únicos de las tablas `users` y `patients` en `tenants` con nombres genéricos para evitar fallos de integridad referencial.
+- Agrega las restricciones `FOREIGN KEY` con `ON DELETE CASCADE` en las tablas `users`, `patients`, `appointments`, `sessions` y `consultations`.
+
+#### [NEW] [000013_add_demo_fields.down.sql](file:///home/carlos/Proyectos/clinicalyx/backend/migrations/000013_add_demo_fields.down.sql)
+Revierte los constraints y la tabla `tenants` creada:
+- Elimina los constraints de claves foráneas de las 5 tablas afectadas.
+- Elimina la tabla `tenants`.
+
+### [Backend Go - Configuration]
+#### [MODIFY] [config.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/config/config.go)
+- Añade el campo `EnableEphemeralDemo bool` con tag `envconfig:"ENABLE_EPHEMERAL_DEMO" default:"false"`.
+
+### [Backend Go - Rate Limiting Middleware]
+#### [NEW] [rate_limiter.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/inbound/http/rate_limiter.go)
+Implementa el Rate Limiter Middleware por IP:
+- Utiliza la librería estándar `golang.org/x/time/rate`.
+- Struct `IPRateLimiter` que guarda un mapa concurrente de IPs a limitadores (`map[string]*rate.Limiter` con un `sync.RWMutex`).
+- Función de limpieza periódica en segundo plano para evitar pérdidas de memoria (evicting de IPs inactivas de más de 1 hora).
+- Middlewares convenientes:
+  - `LoginRateLimiter`: Máximo 5 peticiones por minuto por IP (`rate.Every(time.Minute/5)`, r=0.083 req/sec, burst=5).
+  - `DemoRateLimiter`: Máximo 1 petición por hora por IP (`rate.Every(time.Hour)`, burst=1).
+
+### [Backend Go - Ephemeral Demo Handler]
+#### [NEW] [demo_handler.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/inbound/http/demo_handler.go)
+Implementa la lógica mágica del Demo Mode:
+- Registra el endpoint `POST /api/v1/demo/start`.
+- Lógica de ejecución:
+  1. Generar un nuevo UUID de tenant.
+  2. Insertar el tenant en la base de datos con nombre `"Portfolio Demo - [UUID corto]"`, `is_demo = true`, `expires_at = time.Now().Add(2 * time.Hour)`.
+  3. Reutilizar la lógica del seed script en un contexto transaccional RLS (`ExecuteInTenantTx`):
+     - Crea el SUPERADMIN (`admin@clinicalyx.com`), el DOCTOR (`dr.smith@clinicalyx.com`) y el RECEPTIONIST (`frontdesk@clinicalyx.com`) con `password123`.
+     - Crea 3 pacientes de demostración (cifrados con sus correspondientes Blind Indexes en la base de datos).
+     - Crea 2 citas asignadas al doctor para hoy en el futuro (para evitar el chequeo de tiempo de dominio).
+  4. Autenticar automáticamente al usuario DOCTOR:
+     - Generar el Token de Acceso JWT para el DOCTOR de este nuevo sandbox.
+     - Persistir la sesión en el `SessionRepository` para que sea válida.
+     - Escribir la cookie `access_token` segura en el ResponseWriter.
+     - Devolver en el JSON de respuesta: `access_token`, `expires_at` del token, `tenant_id` y las credenciales generadas para que el usuario las visualice.
+
+### [Backend Go - Main & Router Setup]
+#### [MODIFY] [main.go](file:///home/carlos/Proyectos/clinicalyx/backend/cmd/api/main.go)
+- Si `cfg.EnableEphemeralDemo` es `true`, inicializa el `DemoHandler` y registra su ruta `/api/v1/demo/start` aplicando el middleware `DemoRateLimiter`.
+- Inicia el recolector de basura (Grim Reaper) en una goroutine secundaria con un `time.Ticker` que se dispare cada 15 minutos:
+  ```go
+  go func() {
+      ticker := time.NewTicker(15 * time.Minute)
+      for range ticker.C {
+          log.Println("[Grim Reaper] Buscando y eliminando tenants demo expirados...")
+          result, err := db.Exec("DELETE FROM tenants WHERE is_demo = true AND expires_at < NOW()")
+          if err != nil {
+              log.Printf("[Grim Reaper] Error al eliminar tenants expirados: %v", err)
+          } else {
+              rows, _ := result.RowsAffected()
+              if rows > 0 {
+                  log.Printf("[Grim Reaper] Se eliminaron %d inquilinos de prueba expirados en cascada.", rows)
+              }
+          }
+      }
+  }()
+  ```
+
+## Verification Plan
+
+### Automated Tests
+- **Rate Limiting**: Probar mediante scripts o curl peticiones concurrentes rápidas para verificar que retorna `429 Too Many Requests` en `/api/v1/demo/start` y `/api/v1/auth/login` cuando se superan los límites.
+- **Cascaded Delete**: Crear un tenant de prueba marcado como demo, verificar que se crean los registros relacionados (usuarios y citas), adelantar su fecha de expiración manualmente en Postgres, disparar o esperar a que se ejecute la query del recolector de basura, y verificar que no quedan registros huérfanos con ese `tenant_id`.
+- **Kill Switch**: Establecer `ENABLE_EPHEMERAL_DEMO=false`, arrancar la API y verificar que `/api/v1/demo/start` devuelve un `404 Not Found`.
+
+### Manual Verification
+- Iniciar el servidor localmente con `ENABLE_EPHEMERAL_DEMO=true`.
+- Hacer `POST /api/v1/demo/start` con `curl` o un cliente HTTP. Validar que crea el tenant con éxito, escribe la cookie y devuelve las credenciales del doctor junto con el token JWT.
+- Probar a iniciar sesión con el token devuelto y realizar llamadas de pacientes para comprobar que el aislamiento RLS funciona perfectamente bajo este nuevo sandbox.
+
+---
+
+# Sprint 1: RBAC (Doctor Privacy Wall) & Login UX Refactor
+
+Este plan detalla el diseño e implementación para iniciar el Sprint 1 (RBAC) simplificando el flujo de Login y agregando filtros de privacidad para médicos.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Búsqueda Global de Usuario por Email (Bypass de RLS)**:
+> Al eliminar el campo `Tenant ID` en el Login, el sistema debe resolver el tenant a partir del email del usuario. Dado que la base de datos corre con RLS y la conexión de la app usa el rol `clinicalyx_app_user` (que está aislado bajo políticas RLS), una consulta directa SELECT global sin `app.current_tenant` resultará en 0 filas.
+>
+> Para solucionar esto manteniendo la seguridad e integridad del modelo RLS, crearemos una función con privilegios elevados (`SECURITY DEFINER`) en la base de datos PostgreSQL: `get_user_by_email_global(p_email_blind_index VARCHAR)`. Esta función correrá con los privilegios del creador (superuser) y retornará de forma segura el usuario coincidente sin exponer el resto de la base de datos ni deshabilitar RLS para otras consultas.
+
+> [!WARNING]
+> **Restricción de Pacientes para Doctores**:
+> El endpoint de pacientes `GET /api/v1/patients` restringirá las búsquedas si el rol del usuario autenticado es `DOCTOR`. El doctor solo podrá ver pacientes que tengan al menos una cita asociada a su `doctor_id` en la tabla `appointments`. Los roles `RECEPTIONIST` y `SUPERADMIN` conservarán acceso a todo el Tenant.
+
+## Proposed Changes
+
+### [Database & Migrations]
+#### [NEW] [000014_create_global_user_lookup.up.sql](file:///home/carlos/Proyectos/clinicalyx/backend/migrations/000014_create_global_user_lookup.up.sql)
+Crea la función `SECURITY DEFINER` para permitir la búsqueda global de usuarios por Blind Index de email:
+- Define `get_user_by_email_global(p_email_blind_index VARCHAR)`.
+- Otorga permisos de ejecución al rol `clinicalyx_app_user`.
+
+#### [NEW] [000014_create_global_user_lookup.down.sql](file:///home/carlos/Proyectos/clinicalyx/backend/migrations/000014_create_global_user_lookup.down.sql)
+Elimina la función global de búsqueda.
+
+### [Backend Go - Core & Ports]
+#### [MODIFY] [user_repository.go (port)](file:///home/carlos/Proyectos/clinicalyx/backend/internal/core/ports/user_repository.go)
+- Añade `FindByEmailGlobal(ctx context.Context, email string) (*domain.User, error)`.
+
+#### [MODIFY] [patient_repository.go (port)](file:///home/carlos/Proyectos/clinicalyx/backend/internal/core/ports/patient_repository.go)
+- Modifica `FindByDocument` para admitir opcionalmente el `doctorID`:
+  ```go
+  FindByDocument(ctx context.Context, tenantID domain.TenantID, docType domain.DocumentType, docValue string, doctorID string) (*domain.Patient, error)
+  ```
+
+#### [MODIFY] [auth_usecases.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/core/usecases/auth_usecases.go)
+- Refactoriza `LoginDTO` para remover `TenantID`.
+- Modifica `LoginUseCase.Execute` para llamar a `userRepo.FindByEmailGlobal(ctx, dto.Email)`, resolver el `tenantID` dinámicamente y proceder con la validación.
+
+#### [MODIFY] [get_patient.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/core/usecases/get_patient.go)
+- Modifica `GetByDocument` para recibir el parámetro `doctorID` y reenviarlo a `patientRepo.FindByDocument`.
+
+### [Backend Go - Outbound Adapters]
+#### [MODIFY] [user_repository.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/outbound/postgres/user_repository.go)
+- Implementa `FindByEmailGlobal` invocando la función SQL `get_user_by_email_global` mediante el blind index del email.
+
+#### [MODIFY] [patient_repository.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/outbound/postgres/patient_repository.go)
+- Modifica la consulta SQL en `FindByDocument` para que, si `doctorID` no es vacío, realice un `INNER JOIN appointments` y filtre por `doctor_id = $3`.
+
+### [Backend Go - Inbound HTTP Adapters]
+#### [MODIFY] [auth_handler.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/inbound/http/auth_handler.go)
+- Remueve el middleware `TenantExtractor` de la ruta `POST /api/v1/auth/login`.
+- Modifica el handler `Login` para no leer el tenant del contexto y no requerir el header `X-Tenant-ID`.
+
+#### [MODIFY] [patient_handler.go](file:///home/carlos/Proyectos/clinicalyx/backend/internal/adapters/inbound/http/patient_handler.go)
+- En `GetPatients`, lee el rol desde el contexto (`UserRoleKey`).
+- Si el rol es `DOCTOR`, extrae el `user_id` (`UserIDKey`) e invoca `getPatientUC.GetByDocument(..., doctorID)`.
+- Si es `RECEPTIONIST` o `SUPERADMIN`, pasa una cadena vacía en `doctorID`.
+
+### [Frontend Next.js]
+#### [MODIFY] [route.ts](file:///home/carlos/Proyectos/clinicalyx/frontend/app/api/auth/login/route.ts)
+- Remueve la validación y extracción del header `X-Tenant-ID`.
+- Realiza el fetch a Go sin enviar la cabecera `X-Tenant-ID`.
+
+#### [MODIFY] [page.tsx](file:///home/carlos/Proyectos/clinicalyx/frontend/app/login/page.tsx)
+- Remueve visualmente el componente `Input` del `tenantId`.
+- Quita el envío de la cabecera `X-Tenant-ID` en el `fetch`.
+
+## Verification Plan
+
+### Automated Tests
+- Adaptar las suites de tests unitarias de Go (`auth_usecases_test.go`, `patient_handler_test.go`, `auth_handler_test.go`).
+- Modificar `user_repository_test.go` y `patient_repository_test.go` para incorporar las pruebas de integración con Testcontainers de la consulta global y el filtro del doctor.
+- Ejecutar `go test -v ./...` y verificar compilación de Next.js.
+
+
+
