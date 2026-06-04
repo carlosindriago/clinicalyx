@@ -19,6 +19,12 @@ func TestPostgresAppointmentRepository_Integration(t *testing.T) {
 	tenantA := domain.NewTenantID()
 	tenantB := domain.NewTenantID()
 
+	// Registrar tenants en la base de datos de pruebas
+	_, err := adminDB.Exec("INSERT INTO tenants (id, name) VALUES ($1, 'Tenant A'), ($2, 'Tenant B')", tenantA.String(), tenantB.String())
+	if err != nil {
+		t.Fatalf("error pre-guardando tenants de prueba: %v", err)
+	}
+
 	// 1. Crear pacientes en base de datos
 	pNameA, _ := domain.NewFullName("Juan Perez")
 	pDocA, _ := domain.NewDocument(domain.DocumentTypeDNI, "12345678")

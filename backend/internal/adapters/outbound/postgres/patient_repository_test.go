@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
 	"clinicalyx/backend/internal/adapters/crypto"
 	"clinicalyx/backend/internal/core/domain"
 	_ "github.com/lib/pq"
@@ -92,6 +94,8 @@ func startPostgresContainer(ctx context.Context) (*tcpostgres.PostgresContainer,
 		return nil, "", err
 	}
 
+	adminURL = strings.Replace(adminURL, "localhost", "127.0.0.1", 1)
+
 	return container, adminURL, nil
 }
 
@@ -101,7 +105,7 @@ func openDatabase(databaseURL string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		if err = db.Ping(); err == nil {
 			return db, nil
 		}
@@ -150,7 +154,7 @@ func applicationDatabaseURL(adminURL string) (string, error) {
 
 func cleanDatabase(t *testing.T) {
 	// Truncamos las tablas usando adminDB para evitar restricciones de propietario
-	_, err := adminDB.Exec("TRUNCATE TABLE appointments, consultations, patients CASCADE")
+	_, err := adminDB.Exec("TRUNCATE TABLE tenants CASCADE")
 	if err != nil {
 		t.Fatalf("error limpiando la base de datos con privilegios de administrador: %v", err)
 	}
@@ -165,6 +169,12 @@ func TestPostgresPatientRepository_Integration(t *testing.T) {
 
 	tenantA := domain.NewTenantID()
 	tenantB := domain.NewTenantID()
+
+	// Registrar tenants en la base de datos de pruebas
+	_, err := adminDB.Exec("INSERT INTO tenants (id, name) VALUES ($1, 'Tenant A'), ($2, 'Tenant B')", tenantA.String(), tenantB.String())
+	if err != nil {
+		t.Fatalf("error pre-guardando tenants de prueba: %v", err)
+	}
 
 	// Datos del paciente a registrar
 	name, _ := domain.NewFullName("Carlos Pérez")

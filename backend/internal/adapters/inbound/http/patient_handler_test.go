@@ -58,8 +58,9 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 
 	t.Run("Creación exitosa de paciente", func(t *testing.T) {
 		repo := &MockPatientRepository{}
-		useCase := usecases.NewCreatePatientUseCase(repo)
-		handler := NewPatientHandler(useCase)
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
@@ -95,8 +96,9 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 
 	t.Run("Falta header X-Tenant-ID", func(t *testing.T) {
 		repo := &MockPatientRepository{}
-		useCase := usecases.NewCreatePatientUseCase(repo)
-		handler := NewPatientHandler(useCase)
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
@@ -122,8 +124,9 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 
 	t.Run("Header X-Tenant-ID inválido (no UUID)", func(t *testing.T) {
 		repo := &MockPatientRepository{}
-		useCase := usecases.NewCreatePatientUseCase(repo)
-		handler := NewPatientHandler(useCase)
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
@@ -150,8 +153,9 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 
 	t.Run("Validación fallida por datos incorrectos", func(t *testing.T) {
 		repo := &MockPatientRepository{}
-		useCase := usecases.NewCreatePatientUseCase(repo)
-		handler := NewPatientHandler(useCase)
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
@@ -186,8 +190,9 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		existingP, _ := domain.NewPatient(tID, nameVO, docVO, emailVO)
 		repo.patients = append(repo.patients, existingP)
 
-		useCase := usecases.NewCreatePatientUseCase(repo)
-		handler := NewPatientHandler(useCase)
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
 		handler.RegisterRoutes(r)
@@ -209,6 +214,136 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 
 		if w.Code != http.StatusConflict {
 			t.Errorf("se esperaba status 409 (Conflict), se obtuvo %d", w.Code)
+		}
+	})
+}
+
+func TestPatientHandler_GetPatients(t *testing.T) {
+	tenantID := uuid.New().String()
+
+	t.Run("Búsqueda exitosa por Blind Index (devuelve array con paciente)", func(t *testing.T) {
+		repo := &MockPatientRepository{}
+		tID, _ := domain.ParseTenantID(tenantID)
+		nameVO, _ := domain.NewFullName("Carlos Pérez")
+		docVO, _ := domain.NewDocument(domain.DocumentTypeDNI, "12345678")
+		emailVO, _ := domain.NewEmail("carlos@clinicalyx.com")
+		existingP, _ := domain.NewPatient(tID, nameVO, docVO, emailVO)
+		repo.patients = append(repo.patients, existingP)
+
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
+
+		r := chi.NewRouter()
+		handler.RegisterRoutes(r)
+
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients?document_id=12345678", nil)
+		req.Header.Set("X-Tenant-ID", tenantID)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("se esperaba status 200, se obtuvo %d. Body: %s", w.Code, w.Body.String())
+		}
+
+		var resp []usecases.PatientResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("error decodificando respuesta: %v", err)
+		}
+
+		if len(resp) != 1 {
+			t.Fatalf("se esperaba 1 paciente, se obtuvieron %d", len(resp))
+		}
+
+		if resp[0].Name != "Carlos Pérez" || resp[0].DocumentValue != "12345678" {
+			t.Errorf("datos del paciente no coinciden. Obtenido: %+v", resp[0])
+		}
+	})
+
+	t.Run("Búsqueda por documento no existente (devuelve array vacío)", func(t *testing.T) {
+		repo := &MockPatientRepository{}
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
+
+		r := chi.NewRouter()
+		handler.RegisterRoutes(r)
+
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients?document_id=99999999", nil)
+		req.Header.Set("X-Tenant-ID", tenantID)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("se esperaba status 200, se obtuvo %d", w.Code)
+		}
+
+		var resp []usecases.PatientResponse
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
+		if len(resp) != 0 {
+			t.Errorf("se esperaba array vacío, se obtuvieron %d elementos", len(resp))
+		}
+	})
+}
+
+func TestPatientHandler_GetPatientByID(t *testing.T) {
+	tenantID := uuid.New().String()
+
+	t.Run("Obtención exitosa por ID", func(t *testing.T) {
+		repo := &MockPatientRepository{}
+		tID, _ := domain.ParseTenantID(tenantID)
+		nameVO, _ := domain.NewFullName("Carlos Pérez")
+		docVO, _ := domain.NewDocument(domain.DocumentTypeDNI, "12345678")
+		emailVO, _ := domain.NewEmail("carlos@clinicalyx.com")
+		existingP, _ := domain.NewPatient(tID, nameVO, docVO, emailVO)
+		repo.patients = append(repo.patients, existingP)
+
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
+
+		r := chi.NewRouter()
+		handler.RegisterRoutes(r)
+
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients/"+existingP.ID().String(), nil)
+		req.Header.Set("X-Tenant-ID", tenantID)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("se esperaba status 200, se obtuvo %d. Body: %s", w.Code, w.Body.String())
+		}
+
+		var resp usecases.PatientResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("error decodificando respuesta: %v", err)
+		}
+
+		if resp.ID != existingP.ID().String() || resp.Name != "Carlos Pérez" {
+			t.Errorf("datos del paciente no coinciden. Obtenido: %+v", resp)
+		}
+	})
+
+	t.Run("ID de paciente no encontrado (404 Not Found)", func(t *testing.T) {
+		repo := &MockPatientRepository{}
+		createUC := usecases.NewCreatePatientUseCase(repo)
+		getUC := usecases.NewGetPatientUseCase(repo)
+		handler := NewPatientHandler(createUC, getUC)
+
+		r := chi.NewRouter()
+		handler.RegisterRoutes(r)
+
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients/"+uuid.New().String(), nil)
+		req.Header.Set("X-Tenant-ID", tenantID)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("se esperaba status 404, se obtuvo %d", w.Code)
 		}
 	})
 }

@@ -10,9 +10,9 @@ import (
 )
 
 func cleanAuthDatabase(t *testing.T) {
-	_, err := adminDB.Exec("TRUNCATE TABLE sessions CASCADE; TRUNCATE TABLE users CASCADE;")
+	_, err := adminDB.Exec("TRUNCATE TABLE tenants CASCADE;")
 	if err != nil {
-		t.Fatalf("error al truncar tablas de autenticación: %v", err)
+		t.Fatalf("error al truncar tabla tenants: %v", err)
 	}
 }
 
@@ -25,6 +25,12 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 
 	tenantA := domain.NewTenantID()
 	tenantB := domain.NewTenantID()
+
+	// Registrar tenants en la base de datos de pruebas
+	_, err := adminDB.Exec("INSERT INTO tenants (id, name) VALUES ($1, 'Tenant A'), ($2, 'Tenant B')", tenantA.String(), tenantB.String())
+	if err != nil {
+		t.Fatalf("error pre-guardando tenants de prueba: %v", err)
+	}
 
 	// Crear usuario de prueba
 	name, _ := domain.NewFullName("Carlos")

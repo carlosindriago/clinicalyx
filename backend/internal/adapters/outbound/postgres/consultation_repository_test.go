@@ -14,6 +14,12 @@ func TestPostgresConsultationRepository_Integration(t *testing.T) {
 
 	tenantID1 := domain.NewTenantID()
 	tenantID2 := domain.NewTenantID()
+
+	// Registrar tenants en la base de datos de pruebas
+	_, err := adminDB.Exec("INSERT INTO tenants (id, name) VALUES ($1, 'Tenant 1'), ($2, 'Tenant 2')", tenantID1.String(), tenantID2.String())
+	if err != nil {
+		t.Fatalf("error pre-guardando tenants de prueba: %v", err)
+	}
 	doctorID := domain.NewUserID()
 
 	// Crear pacientes en BD (usando repositorio de pacientes) para cumplir llaves foráneas
@@ -33,7 +39,7 @@ func TestPostgresConsultationRepository_Integration(t *testing.T) {
 	ctxP1 := context.WithValue(context.Background(), "tenant_id", tenantID1)
 	ctxP2 := context.WithValue(context.Background(), "tenant_id", tenantID2)
 
-	err := patientRepo.Save(ctxP1, patient1)
+	err = patientRepo.Save(ctxP1, patient1)
 	if err != nil {
 		t.Fatalf("no se pudo pre-guardar paciente 1: %v", err)
 	}
