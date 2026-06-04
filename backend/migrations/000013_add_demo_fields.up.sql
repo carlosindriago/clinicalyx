@@ -60,3 +60,7 @@ ALTER TABLE consultations
     ADD CONSTRAINT fk_consultations_tenant 
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) 
     ON DELETE CASCADE;
+
+-- Otorgar permisos sobre la tabla tenants
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE tenants TO clinicalyx_app_user;
+
