@@ -56,7 +56,7 @@ export async function GET(
     if (!isValidUUID(id)) {
       return NextResponse.json(
         {
-          error: "Invalid UUID format for patient ID",
+          error: "Invalid patient ID format",
         },
         { status: 400 }
       );
