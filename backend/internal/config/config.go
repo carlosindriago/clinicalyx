@@ -20,6 +20,12 @@ type Config struct {
 	JWTRefreshDurationDays   int      `envconfig:"JWT_REFRESH_DURATION_DAYS" default:"7"`
 	CORSAllowedOrigins       []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"http://localhost:3000"`
 	EnableEphemeralDemo      bool     `envconfig:"ENABLE_EPHEMERAL_DEMO" default:"false"`
+	// AWS S3 / MinIO configuration
+	AWSRegion          string `envconfig:"AWS_REGION" default:"us-east-1"`
+	AWSAccessKeyID     string `envconfig:"AWS_ACCESS_KEY_ID" default:"clinicalyx_admin"`
+	AWSSecretAccessKey string `envconfig:"AWS_SECRET_ACCESS_KEY" default:"clinicalyx_secret"`
+	AWSBucket          string `envconfig:"AWS_BUCKET" default:"clinicalyx-files"`
+	AWSEndpoint        string `envconfig:"AWS_ENDPOINT" default:"http://localhost:9000"`
 }
 
 // Load carga la configuración desde el archivo .env (si existe) y del entorno de ejecución.
