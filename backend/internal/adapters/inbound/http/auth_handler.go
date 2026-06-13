@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -43,10 +44,12 @@ type AuthHandler struct {
 	userRepo           ports.UserRepository
 	jwtService         *crypto.JWTService
 	authMiddleware     *AuthMiddleware
+	loginRateLimiter   func(http.Handler) http.Handler
 }
 
 // NewAuthHandler construye una instancia de AuthHandler.
 func NewAuthHandler(
+	ctx context.Context,
 	setupTenantUC *usecases.SetupTenantUseCase,
 	loginUC *usecases.LoginUseCase,
 	logoutUC *usecases.LogoutUseCase,
@@ -63,13 +66,14 @@ func NewAuthHandler(
 		userRepo:           userRepo,
 		jwtService:         jwtService,
 		authMiddleware:     authMiddleware,
+		loginRateLimiter:   NewLoginRateLimiter(ctx),
 	}
 }
 
 // RegisterRoutes registra los endpoints de autenticación en Chi.
 func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 	r.With(TenantExtractor).Post("/api/v1/auth/setup", h.SetupTenant)
-	r.With(TenantExtractor, NewLoginRateLimiter()).Post("/api/v1/auth/login", h.Login)
+	r.With(TenantExtractor, h.loginRateLimiter).Post("/api/v1/auth/login", h.Login)
 	r.With(TenantExtractor, h.authMiddleware.Handler).Post("/api/v1/auth/logout", h.Logout)
 	r.With(TenantExtractor, h.authMiddleware.Handler).Put("/api/v1/auth/users/{id}/status", h.ToggleStatus)
 }

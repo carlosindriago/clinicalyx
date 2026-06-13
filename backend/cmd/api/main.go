@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"clinicalyx/backend/internal/adapters/crypto"
@@ -21,7 +25,11 @@ import (
 func main() {
 	log.Println("Starting Clinicalyx API...")
 
-	// 1. Cargar Configuración
+	// 1. Configurar contexto principal para graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 2. Cargar Configuración
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Error crítico al cargar configuración: %v", err)
@@ -46,16 +54,23 @@ func main() {
 	// Iniciar el recolector de basura (Grim Reaper) para eliminar tenants de prueba expirados cada 15 minutos
 	go func() {
 		ticker := time.NewTicker(15 * time.Minute)
-		for range ticker.C {
-			log.Println("[Grim Reaper] Buscando y eliminando tenants demo expirados...")
-			result, err := db.Exec("DELETE FROM tenants WHERE is_demo = true AND expires_at < NOW()")
-			if err != nil {
-				log.Printf("[Grim Reaper] Error al eliminar tenants expirados: %v", err)
-			} else {
-				rows, _ := result.RowsAffected()
-				if rows > 0 {
-					log.Printf("[Grim Reaper] Se eliminaron %d inquilinos de prueba expirados en cascada.", rows)
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case <-ticker.C:
+				log.Println("[Grim Reaper] Buscando y eliminando tenants demo expirados...")
+				result, err := db.Exec("DELETE FROM tenants WHERE is_demo = true AND expires_at < NOW()")
+				if err != nil {
+					log.Printf("[Grim Reaper] Error al eliminar tenants expirados: %v", err)
+				} else {
+					rows, _ := result.RowsAffected()
+					if rows > 0 {
+						log.Printf("[Grim Reaper] Se eliminaron %d inquilinos de prueba expirados en cascada.", rows)
+					}
 				}
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
@@ -97,6 +112,7 @@ func main() {
 	// 7. Inicializar Controladores HTTP (Adaptadores de entrada)
 	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC, getPatientUC)
 	authHandler := inboundHTTP.NewAuthHandler(
+		ctx,
 		setupTenantUC,
 		loginUC,
 		logoutUC,
@@ -151,7 +167,7 @@ func main() {
 	if cfg.EnableEphemeralDemo {
 		demoHandler := inboundHTTP.NewDemoHandler(db, cryptoService, passwordHasher, jwtService, sessionRepo)
 		r.Group(func(r chi.Router) {
-			r.Use(inboundHTTP.NewDemoRateLimiter())
+			r.Use(inboundHTTP.NewDemoRateLimiter(ctx))
 			demoHandler.RegisterRoutes(r)
 		})
 		log.Println("Módulo Ephemeral Demo Mode habilitado en /api/v1/demo/start")
@@ -168,7 +184,39 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Error fatal al iniciar el servidor HTTP: %v", err)
+	// Ejecutar servidor en goroutine separada para no bloquear el hilo principal
+	serverErr := make(chan error, 1)
+	go func() {
+		log.Println("Servidor HTTP iniciado")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErr <- err
+		}
+	}()
+
+	// Configurar canal para señales del sistema operativo
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// Esperar señal de terminación o error del servidor
+	select {
+	case sig := <-sigCh:
+		log.Printf("Recibida señal %v, iniciando graceful shutdown...", sig)
+		
+		// Cancelar contexto para detener goroutines (Grim Reaper y Rate Limiter)
+		cancel()
+		
+		// Crear contexto con timeout para shutdown
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		
+		// Intentar graceful shutdown
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Error durante graceful shutdown: %v", err)
+		} else {
+			log.Println("Graceful shutdown completado exitosamente")
+		}
+		
+	case err := <-serverErr:
+		log.Fatalf("Error fatal del servidor HTTP: %v", err)
 	}
 }

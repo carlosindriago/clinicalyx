@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -25,7 +26,7 @@ type IPRateLimiter struct {
 }
 
 // NewIPRateLimiter crea una instancia de IPRateLimiter y arranca la limpieza automática en segundo plano
-func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
+func NewIPRateLimiter(ctx context.Context, r rate.Limit, b int) *IPRateLimiter {
 	limiter := &IPRateLimiter{
 		ips:   make(map[string]*limiterInfo),
 		limit: r,
@@ -33,7 +34,7 @@ func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
 	}
 
 	// Goroutine de limpieza periódica para evitar pérdidas de memoria (memory leaks)
-	go limiter.cleanupLoop()
+	go limiter.cleanupLoop(ctx)
 
 	return limiter
 }
@@ -54,17 +55,24 @@ func (i *IPRateLimiter) getLimiter(ip string) *rate.Limiter {
 	return info.limiter
 }
 
-func (i *IPRateLimiter) cleanupLoop() {
+func (i *IPRateLimiter) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Minute)
-	for range ticker.C {
-		i.mu.Lock()
-		for ip, info := range i.ips {
-			// Si la IP no ha sido vista en más de 1 hora, eliminamos el limitador
-			if time.Since(info.lastSeen) > 1*time.Hour {
-				delete(i.ips, ip)
+	defer ticker.Stop()
+	
+	for {
+		select {
+		case <-ticker.C:
+			i.mu.Lock()
+			for ip, info := range i.ips {
+				// Si la IP no ha sido vista en más de 1 hora, eliminamos el limitador
+				if time.Since(info.lastSeen) > 1*time.Hour {
+					delete(i.ips, ip)
+				}
 			}
+			i.mu.Unlock()
+		case <-ctx.Done():
+			return
 		}
-		i.mu.Unlock()
 	}
 }
 
@@ -119,16 +127,16 @@ func RateLimitMiddleware(limiter *IPRateLimiter) func(http.Handler) http.Handler
 }
 
 // NewLoginRateLimiter crea un middleware que limita el login a 5 intentos por minuto por IP
-func NewLoginRateLimiter() func(http.Handler) http.Handler {
+func NewLoginRateLimiter(ctx context.Context) func(http.Handler) http.Handler {
 	// 5 peticiones por minuto = 5 / 60 = 0.083 req/seg
 	limit := rate.Every(time.Minute / 5)
-	limiter := NewIPRateLimiter(limit, 5)
+	limiter := NewIPRateLimiter(ctx, limit, 5)
 	return RateLimitMiddleware(limiter)
 }
 
 // NewDemoRateLimiter crea un middleware que limita la creación de demos a 1 petición por hora por IP
-func NewDemoRateLimiter() func(http.Handler) http.Handler {
+func NewDemoRateLimiter(ctx context.Context) func(http.Handler) http.Handler {
 	limit := rate.Every(1 * time.Hour)
-	limiter := NewIPRateLimiter(limit, 1)
+	limiter := NewIPRateLimiter(ctx, limit, 1)
 	return RateLimitMiddleware(limiter)
 }
