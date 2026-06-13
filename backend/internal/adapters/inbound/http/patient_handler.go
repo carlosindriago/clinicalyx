@@ -36,9 +36,14 @@ func NewPatientHandler(
 }
 
 // RegisterRoutes registra las rutas de pacientes en el router de Chi.
-func (h *PatientHandler) RegisterRoutes(r chi.Router) {
+// NOTA: Este handler debe ser instanciado por un componente superior que tenga
+// acceso al AuthMiddleware para aplicar protección a estas rutas.
+func (h *PatientHandler) RegisterRoutes(r chi.Router, authMiddleware func(http.Handler) http.Handler) {
 	r.Route("/api/v1/patients", func(r chi.Router) {
 		r.Use(TenantExtractor)
+		if authMiddleware != nil {
+			r.Use(authMiddleware) // Protección de autenticación CRÍTICA
+		}
 		r.Post("/", h.CreatePatient)
 		r.Get("/", h.GetPatients)
 		r.Get("/{patient_id}", h.GetPatientByID)

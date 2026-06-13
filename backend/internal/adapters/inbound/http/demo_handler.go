@@ -290,19 +290,18 @@ func (h *DemoHandler) StartDemo(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	// 8. Responder JSON de éxito con credenciales y tokens
+	// 8. Responder JSON de éxito con credenciales (NO incluir tokens en el body
+	// por seguridad - los tokens solo viajan en cookies HttpOnly)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":        "success",
-		"message":       "Entorno de demostración temporal activado con éxito. Expira en 2 horas.",
-		"tenant_id":     tenantID.String(),
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
+		"status":  "success",
+		"message": "Entorno de demostración temporal activado con éxito. Expira en 2 horas.",
+		"tenant_id": tenantID.String(),
 		"credentials": map[string]string{
-			"admin_email":       adminEmail,
-			"doctor_email":      doctorEmail,
+			"admin_email":        adminEmail,
+			"doctor_email":       doctorEmail,
 			"receptionist_email": receptionistEmail,
-			"password":          "password123",
+			"password":           "password123",
 		},
 	})
 }

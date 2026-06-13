@@ -63,7 +63,13 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -101,7 +107,13 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -129,7 +141,13 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -158,7 +176,13 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -195,7 +219,13 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -235,7 +265,13 @@ func TestPatientHandler_GetPatients(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients?document_id=12345678", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -268,7 +304,13 @@ func TestPatientHandler_GetPatients(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients?document_id=99999999", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -305,7 +347,13 @@ func TestPatientHandler_GetPatientByID(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients/"+existingP.ID().String(), nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -334,7 +382,13 @@ func TestPatientHandler_GetPatientByID(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		handler.RegisterRoutes(r)
+		// Middleware dummy para tests que no aplica autenticación real
+		dummyAuthMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+		handler.RegisterRoutes(r, dummyAuthMiddleware)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients/"+uuid.New().String(), nil)
 		req.Header.Set("X-Tenant-ID", tenantID)

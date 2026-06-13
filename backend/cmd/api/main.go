@@ -136,8 +136,13 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+
 	// Registrar Rutas
-	patientHandler.RegisterRoutes(r)
+	patientHandler.RegisterRoutes(r, authMiddleware.Handler)
 	authHandler.RegisterRoutes(r)
 	consultationHandler.RegisterRoutes(r)
 	appointmentHandler.RegisterRoutes(r)
