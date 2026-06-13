@@ -15,6 +15,11 @@ function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isValidUUID(value: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+}
+
 function extractErrorMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object" || !("error" in payload)) {
     return null;
@@ -70,6 +75,16 @@ export async function POST(request: NextRequest) {
         {
           error:
             "patient_id, doctor_id, start_time y end_time son obligatorios",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validación UUID para prevenir SSRF
+    if (!isValidUUID(patientID) || !isValidUUID(doctorID)) {
+      return NextResponse.json(
+        {
+          error: "Invalid UUID format for patient_id or doctor_id",
         },
         { status: 400 }
       );

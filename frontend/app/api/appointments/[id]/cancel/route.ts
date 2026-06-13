@@ -13,6 +13,11 @@ function extractErrorMessage(payload: unknown): string | null {
   return typeof error === "string" ? error : null;
 }
 
+function isValidUUID(value: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+}
+
 function buildUpstreamHeaders(request: NextRequest): Headers {
   const headers = new Headers();
   const cookieHeader = request.headers.get("cookie");
@@ -35,6 +40,16 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
+
+    // Validación UUID para prevenir SSRF
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        {
+          error: "Invalid UUID format for appointment ID",
+        },
+        { status: 400 }
+      );
+    }
 
     const backendUrl = process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
     const cancelEndpoint = `${backendUrl}/appointments/${id}/cancel`;

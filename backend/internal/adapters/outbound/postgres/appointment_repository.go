@@ -100,15 +100,10 @@ func (r *PostgresAppointmentRepository) HasOverlap(
 // UpdateStatus actualiza el estado de una cita médica específica.
 func (r *PostgresAppointmentRepository) UpdateStatus(
 	ctx context.Context,
+	tenantID domain.TenantID,
 	id domain.AppointmentID,
 	status domain.AppointmentStatus,
 ) error {
-	tenantIDVal := ctx.Value("tenant_id")
-	tenantID, ok := tenantIDVal.(domain.TenantID)
-	if !ok || tenantID.IsNil() {
-		return errors.New("identificador de tenant ausente o inválido en contexto para actualizar cita RLS")
-	}
-
 	return ExecuteInTenantTx(ctx, r.db, tenantID, func(tx *sql.Tx) error {
 		query := `
 			UPDATE appointments

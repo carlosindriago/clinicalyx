@@ -53,7 +53,7 @@ func (m *mockAppointmentRepository) HasOverlap(ctx context.Context, tenantID dom
 	return m.overlap, nil
 }
 
-func (m *mockAppointmentRepository) UpdateStatus(ctx context.Context, id domain.AppointmentID, status domain.AppointmentStatus) error {
+func (m *mockAppointmentRepository) UpdateStatus(ctx context.Context, tenantID domain.TenantID, id domain.AppointmentID, status domain.AppointmentStatus) error {
 	if m.err != nil {
 		return m.err
 	}

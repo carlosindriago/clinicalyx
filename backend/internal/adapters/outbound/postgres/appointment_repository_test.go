@@ -162,7 +162,7 @@ func TestPostgresAppointmentRepository_Integration(t *testing.T) {
 		}
 
 		// Cancelar la cita
-		err = repo.UpdateStatus(ctxA, appt.ID(), domain.AppointmentStatusCanceled)
+		err = repo.UpdateStatus(ctxA, tenantA, appt.ID(), domain.AppointmentStatusCanceled)
 		if err != nil {
 			t.Fatalf("error cancelando cita: %v", err)
 		}
@@ -204,7 +204,7 @@ func TestPostgresAppointmentRepository_Integration(t *testing.T) {
 		}
 
 		// Intentar cancelar la cita del Tenant B usando el contexto de Tenant A
-		err = repo.UpdateStatus(ctxA, apptB.ID(), domain.AppointmentStatusCanceled)
+		err = repo.UpdateStatus(ctxA, tenantA, apptB.ID(), domain.AppointmentStatusCanceled)
 		if err == nil {
 			t.Error("🚨 VIOLACIÓN DE RLS: El Tenant A pudo cancelar una cita perteneciente al Tenant B sin error")
 		}

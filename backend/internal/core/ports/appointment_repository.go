@@ -11,5 +11,5 @@ import (
 type AppointmentRepository interface {
 	Save(ctx context.Context, appt *domain.Appointment) error
 	HasOverlap(ctx context.Context, tenantID domain.TenantID, doctorID domain.UserID, start time.Time, end time.Time) (bool, error)
-	UpdateStatus(ctx context.Context, id domain.AppointmentID, status domain.AppointmentStatus) error
+	UpdateStatus(ctx context.Context, tenantID domain.TenantID, id domain.AppointmentID, status domain.AppointmentStatus) error
 }

@@ -6,7 +6,6 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -105,18 +104,11 @@ func (r *PostgresConsultationRepository) Save(ctx context.Context, consultation 
 // ListByPatientID recupera la lista paginada de consultas de un paciente descifrando notas clínicamente.
 func (r *PostgresConsultationRepository) ListByPatientID(
 	ctx context.Context,
+	tenantID domain.TenantID,
 	patientID domain.PatientID,
 	limit int,
 	offset int,
 ) ([]*domain.Consultation, error) {
-	// 1. Resolver el Tenant ID actual del contexto para RLS
-	tenantIDVal := ctx.Value("tenant_id") // contextKey de inyección HTTP
-	tenantID, ok := tenantIDVal.(domain.TenantID)
-	if !ok || tenantID.IsNil() {
-		// Fallback: intentar extraer usando el contexto genérico del backend
-		return nil, errors.New("identificador de tenant ausente o inválido en contexto para consulta RLS")
-	}
-
 	var consultations []*domain.Consultation
 
 	err := ExecuteInTenantTx(ctx, r.db, tenantID, func(tx *sql.Tx) error {

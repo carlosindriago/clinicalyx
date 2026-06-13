@@ -52,7 +52,7 @@ func (m *mockConsultationRepository) Save(ctx context.Context, c *domain.Consult
 	return nil
 }
 
-func (m *mockConsultationRepository) ListByPatientID(ctx context.Context, patientID domain.PatientID, limit, offset int) ([]*domain.Consultation, error) {
+func (m *mockConsultationRepository) ListByPatientID(ctx context.Context, tenantID domain.TenantID, patientID domain.PatientID, limit, offset int) ([]*domain.Consultation, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

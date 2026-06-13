@@ -14,6 +14,11 @@ function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isValidUUID(value: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+}
+
 function extractErrorMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object" || !("error" in payload)) {
     return null;
@@ -57,6 +62,16 @@ export async function POST(
 ): Promise<Response> {
   try {
     const { id: patientID } = await props.params;
+
+    // Validación UUID para prevenir SSRF
+    if (!isValidUUID(patientID)) {
+      return NextResponse.json(
+        {
+          error: "Invalid UUID format for patient ID",
+        },
+        { status: 400 }
+      );
+    }
 
     const body = (await request.json()) as RecordConsultationBody;
     const {

@@ -27,7 +27,7 @@ func NewCancelAppointmentUseCase(appointmentRepo ports.AppointmentRepository) *C
 
 // Execute valida los parámetros y ejecuta la transición de estado en la persistencia.
 func (uc *CancelAppointmentUseCase) Execute(ctx context.Context, dto CancelAppointmentDTO) error {
-	_, err := domain.ParseTenantID(dto.TenantID)
+	tenantID, err := domain.ParseTenantID(dto.TenantID)
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func (uc *CancelAppointmentUseCase) Execute(ctx context.Context, dto CancelAppoi
 	}
 
 	// Transicionar directamente en la persistencia
-	err = uc.appointmentRepo.UpdateStatus(ctx, apptID, domain.AppointmentStatusCanceled)
+	err = uc.appointmentRepo.UpdateStatus(ctx, tenantID, apptID, domain.AppointmentStatusCanceled)
 	if err != nil {
 		return err
 	}

@@ -48,6 +48,7 @@ func (m *MockAppointmentRepositoryHTTP) HasOverlap(
 
 func (m *MockAppointmentRepositoryHTTP) UpdateStatus(
 	ctx context.Context,
+	tenantID domain.TenantID,
 	id domain.AppointmentID,
 	status domain.AppointmentStatus,
 ) error {

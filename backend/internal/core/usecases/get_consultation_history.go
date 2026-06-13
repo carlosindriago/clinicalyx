@@ -84,7 +84,7 @@ func (uc *GetConsultationHistoryUseCase) Execute(
 	}
 
 	// 3. Consultar historial médico
-	consultations, err := uc.consultationRepo.ListByPatientID(ctx, patientID, limit, offset)
+	consultations, err := uc.consultationRepo.ListByPatientID(ctx, tenantID, patientID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
