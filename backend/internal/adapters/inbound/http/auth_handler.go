@@ -153,24 +153,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Obtener el rol del usuario para incluirlo en el token
+	// El rol viaja en LoginResponse desde el LoginUseCase, evitando una
+	// segunda consulta al repositorio de usuarios en la capa de transporte.
 	userID, _ := domain.ParseUserID(resp.UserID)
-	user, err := h.userRepo.FindByID(r.Context(), tenantID, userID)
-	if err != nil || user == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"error":"Error al recuperar datos del perfil del usuario"}`))
-		return
-	}
 
 	// Generar tokens de sesión
-	accessToken, err := h.jwtService.GenerateAccessToken(user.ID(), tenantID, user.Role(), resp.SessionID)
+	accessToken, err := h.jwtService.GenerateAccessToken(userID, tenantID, resp.Role, resp.SessionID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(`{"error":"Error al generar token de acceso"}`))
 		return
 	}
 
-	refreshToken, err := h.jwtService.GenerateRefreshToken(user.ID(), tenantID, resp.SessionID)
+	refreshToken, err := h.jwtService.GenerateRefreshToken(userID, tenantID, resp.SessionID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(`{"error":"Error al generar token de refresco"}`))

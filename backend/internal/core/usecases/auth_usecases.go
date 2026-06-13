@@ -124,6 +124,7 @@ type LoginResponse struct {
 	RequiresMFA bool
 	UserID      string
 	SessionID   string
+	Role        domain.UserRole
 }
 
 type LoginUseCase struct {
@@ -175,6 +176,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, dto LoginDTO) (LoginRespons
 		return LoginResponse{
 			RequiresMFA: true,
 			UserID:      user.ID().String(),
+			Role:        user.Role(),
 		}, nil
 	}
 
@@ -190,6 +192,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, dto LoginDTO) (LoginRespons
 		RequiresMFA: false,
 		UserID:      user.ID().String(),
 		SessionID:   sessionID,
+		Role:        user.Role(),
 	}, nil
 }
 
