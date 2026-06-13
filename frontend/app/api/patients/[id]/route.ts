@@ -1,45 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 
-
-
 type BackendErrorResponse = {
   error?: unknown;
 };
 
-type JwtPayload = {
-  tenant_id?: unknown;
-};
-
-function tenantFromAccessToken(token: string | undefined): string | null {
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) {
-      return null;
-    }
-
-    const payload = JSON.parse(
-      Buffer.from(payloadPart, "base64url").toString("utf-8")
-    ) as JwtPayload;
-
-    return typeof payload.tenant_id === "string" ? payload.tenant_id : null;
-  } catch {
-    return null;
-  }
-}
-
-function resolveTenantID(request: NextRequest): string | null {
-  return (
-    request.headers.get("x-tenant-id") ??
-    tenantFromAccessToken(request.cookies.get("access_token")?.value)
-  );
-}
-
 function backendBaseUrl(): string {
   return process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
+}
+
+function buildUpstreamHeaders(request: NextRequest): Headers {
+  const headers = new Headers();
+  const cookieHeader = request.headers.get("cookie");
+  const tenantHeader = request.headers.get("x-tenant-id");
+
+  if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
+  }
+
+  // Only forward the tenant header if the caller explicitly provided it.
+  // The Go backend is the single source of truth for tenant resolution from
+  // the cryptographically verified access_token cookie.
+  if (tenantHeader) {
+    headers.set("X-Tenant-ID", tenantHeader);
+  }
+
+  return headers;
 }
 
 async function readJsonSafely(response: Response): Promise<unknown> {
@@ -61,22 +46,10 @@ export async function GET(
 ): Promise<Response> {
   try {
     const { id } = await props.params;
-    const tenantID = resolveTenantID(request);
-    const cookieHeader = request.headers.get("cookie");
-
-    if (!tenantID) {
-      return NextResponse.json(
-        { error: "No se pudo resolver el identificador de organización" },
-        { status: 400 }
-      );
-    }
 
     const response = await fetch(`${backendBaseUrl()}/patients/${id}`, {
       method: "GET",
-      headers: {
-        "X-Tenant-ID": tenantID,
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
+      headers: buildUpstreamHeaders(request),
       cache: "no-store",
     });
 

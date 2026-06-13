@@ -11,10 +11,6 @@ type BackendErrorResponse = {
   error?: unknown;
 };
 
-type JwtPayload = {
-  tenant_id?: unknown;
-};
-
 function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -28,28 +24,27 @@ function extractErrorMessage(payload: unknown): string | null {
   return typeof error === "string" ? error : null;
 }
 
-function tenantFromAccessToken(token: string | undefined) {
-  if (!token) {
-    return null;
+function buildUpstreamHeaders(request: NextRequest, contentType?: string): Headers {
+  const headers = new Headers();
+  const cookieHeader = request.headers.get("cookie");
+  const tenantHeader = request.headers.get("x-tenant-id");
+
+  if (contentType) {
+    headers.set("Content-Type", contentType);
   }
 
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) {
-      return null;
-    }
-
-    const payload = JSON.parse(
-      Buffer.from(payloadPart, "base64url").toString("utf-8")
-    ) as JwtPayload;
-
-    return typeof payload.tenant_id === "string" ? payload.tenant_id : null;
-  } catch {
-    return null;
+  if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
   }
+
+  if (tenantHeader) {
+    headers.set("X-Tenant-ID", tenantHeader);
+  }
+
+  return headers;
 }
 
-function isDoctorUnavailable(message: string) {
+function isDoctorUnavailable(message: string): boolean {
   const normalized = message.toLowerCase();
 
   return (
@@ -62,18 +57,6 @@ function isDoctorUnavailable(message: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const tenantID =
-      request.headers.get("x-tenant-id") ??
-      tenantFromAccessToken(request.cookies.get("access_token")?.value);
-    const cookieHeader = request.headers.get("cookie");
-
-    if (!tenantID) {
-      return NextResponse.json(
-        { error: "No se pudo resolver el identificador de organización" },
-        { status: 400 }
-      );
-    }
-
     const body = (await request.json()) as ScheduleAppointmentBody;
     const {
       patient_id: patientID,
@@ -97,11 +80,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(appointmentEndpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Tenant-ID": tenantID,
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
+      headers: buildUpstreamHeaders(request, "application/json"),
       body: JSON.stringify({
         doctor_id: doctorID,
         start_time: startTime,

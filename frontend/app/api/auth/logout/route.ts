@@ -1,57 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type JwtPayload = {
-  tenant_id?: unknown;
-};
+function buildUpstreamHeaders(request: NextRequest): Headers {
+  const headers = new Headers();
+  const cookieHeader = request.headers.get("cookie");
+  const tenantHeader = request.headers.get("x-tenant-id");
+
+  if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
+  }
+
+  if (tenantHeader) {
+    headers.set("X-Tenant-ID", tenantHeader);
+  }
+
+  return headers;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const accessToken = request.cookies.get("access_token")?.value;
-
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "No hay sesión activa para cerrar" },
-        { status: 401 }
-      );
-    }
-
-    let tenantID = "";
-    try {
-      // Decodificar el payload del JWT de forma no verificada (Go realizará la verificación de firma)
-      const payloadPart = accessToken.split(".")[1];
-      const decodedPayload = JSON.parse(
-        Buffer.from(payloadPart, "base64").toString("utf-8")
-      ) as JwtPayload;
-
-      if (typeof decodedPayload.tenant_id === "string") {
-        tenantID = decodedPayload.tenant_id;
-      }
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al parsear JWT";
-
-      console.error("Error al parsear el token JWT en logout proxy:", message);
-    }
-
-    if (!tenantID) {
-      return NextResponse.json(
-        { error: "Token malformado o sin identificador de organización" },
-        { status: 400 }
-      );
-    }
-
     const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
     const logoutEndpoint = `${backendUrl}/auth/logout`;
 
-    // Hacer petición al backend de Go para revocar la sesión
+    // Forward the original request untouched. The Go backend is the single
+    // source of truth for verifying the access_token cookie and revoking
+    // the session. We never inspect or parse the JWT in the proxy layer.
     await fetch(logoutEndpoint, {
       method: "POST",
-      headers: {
-        "X-Tenant-ID": tenantID,
-        "Authorization": `Bearer ${accessToken}`,
-      },
+      headers: buildUpstreamHeaders(request),
     });
 
     // Independientemente de si el backend falla, debemos purgar las cookies en el cliente Next.js
@@ -90,10 +65,10 @@ export async function POST(request: NextRequest) {
       { error: "Error en el servidor de enlace (Proxy) al cerrar sesión" },
       { status: 500 }
     );
-    
+
     errorResponse.cookies.set("access_token", "", { path: "/", maxAge: -1 });
     errorResponse.cookies.set("refresh_token", "", { path: "/", maxAge: -1 });
-    
+
     return errorResponse;
   }
 }

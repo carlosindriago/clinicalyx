@@ -4,10 +4,6 @@ type BackendErrorResponse = {
   error?: unknown;
 };
 
-type JwtPayload = {
-  tenant_id?: unknown;
-};
-
 function extractErrorMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object" || !("error" in payload)) {
     return null;
@@ -17,25 +13,20 @@ function extractErrorMessage(payload: unknown): string | null {
   return typeof error === "string" ? error : null;
 }
 
-function tenantFromAccessToken(token: string | undefined) {
-  if (!token) {
-    return null;
+function buildUpstreamHeaders(request: NextRequest): Headers {
+  const headers = new Headers();
+  const cookieHeader = request.headers.get("cookie");
+  const tenantHeader = request.headers.get("x-tenant-id");
+
+  if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
   }
 
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) {
-      return null;
-    }
-
-    const payload = JSON.parse(
-      Buffer.from(payloadPart, "base64url").toString("utf-8")
-    ) as JwtPayload;
-
-    return typeof payload.tenant_id === "string" ? payload.tenant_id : null;
-  } catch {
-    return null;
+  if (tenantHeader) {
+    headers.set("X-Tenant-ID", tenantHeader);
   }
+
+  return headers;
 }
 
 export async function PATCH(
@@ -44,27 +35,13 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const tenantID =
-      request.headers.get("x-tenant-id") ??
-      tenantFromAccessToken(request.cookies.get("access_token")?.value);
-    const cookieHeader = request.headers.get("cookie");
-
-    if (!tenantID) {
-      return NextResponse.json(
-        { error: "No se pudo resolver el identificador de organización" },
-        { status: 400 }
-      );
-    }
 
     const backendUrl = process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
     const cancelEndpoint = `${backendUrl}/appointments/${id}/cancel`;
 
     const response = await fetch(cancelEndpoint, {
       method: "PATCH",
-      headers: {
-        "X-Tenant-ID": tenantID,
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
+      headers: buildUpstreamHeaders(request),
     });
 
     const payload: unknown = await response.json().catch(() => ({}));

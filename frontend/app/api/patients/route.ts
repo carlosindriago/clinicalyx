@@ -16,10 +16,6 @@ type BackendErrorResponse = {
   error?: unknown;
 };
 
-type JwtPayload = {
-  tenant_id?: unknown;
-};
-
 const e164Regex = /^\+[1-9]\d{9,14}$/;
 
 function isNonEmptyString(value: unknown): value is string {
@@ -35,43 +31,35 @@ function extractErrorMessage(payload: unknown): string | null {
   return typeof error === "string" ? error : null;
 }
 
-function tenantFromAccessToken(token: string | undefined) {
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) {
-      return null;
-    }
-
-    const payload = JSON.parse(
-      Buffer.from(payloadPart, "base64url").toString("utf-8")
-    ) as JwtPayload;
-
-    return typeof payload.tenant_id === "string" ? payload.tenant_id : null;
-  } catch {
-    return null;
-  }
-}
-
-function resolveTenantID(request: NextRequest) {
-  return (
-    request.headers.get("x-tenant-id") ??
-    tenantFromAccessToken(request.cookies.get("access_token")?.value)
-  );
-}
-
-function backendBaseUrl() {
+function backendBaseUrl(): string {
   return process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
+}
+
+function buildUpstreamHeaders(request: NextRequest, contentType?: string): Headers {
+  const headers = new Headers();
+  const cookieHeader = request.headers.get("cookie");
+  const tenantHeader = request.headers.get("x-tenant-id");
+
+  if (contentType) {
+    headers.set("Content-Type", contentType);
+  }
+
+  if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
+  }
+
+  if (tenantHeader) {
+    headers.set("X-Tenant-ID", tenantHeader);
+  }
+
+  return headers;
 }
 
 async function readJsonSafely(response: Response): Promise<unknown> {
   return response.json().catch(() => ({}));
 }
 
-function buildPatientListUrl(request: NextRequest) {
+function buildPatientListUrl(request: NextRequest): URL {
   const url = new URL(`${backendBaseUrl()}/patients`);
   const limit = request.nextUrl.searchParams.get("limit");
   const offset = request.nextUrl.searchParams.get("offset");
@@ -94,22 +82,9 @@ function buildPatientListUrl(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const tenantID = resolveTenantID(request);
-    const cookieHeader = request.headers.get("cookie");
-
-    if (!tenantID) {
-      return NextResponse.json(
-        { error: "No se pudo resolver el identificador de organización" },
-        { status: 400 }
-      );
-    }
-
     const response = await fetch(buildPatientListUrl(request), {
       method: "GET",
-      headers: {
-        "X-Tenant-ID": tenantID,
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
+      headers: buildUpstreamHeaders(request),
       cache: "no-store",
     });
 
@@ -138,16 +113,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const tenantID = resolveTenantID(request);
-    const cookieHeader = request.headers.get("cookie");
-
-    if (!tenantID) {
-      return NextResponse.json(
-        { error: "No se pudo resolver el identificador de organización" },
-        { status: 400 }
-      );
-    }
-
     const body = (await request.json()) as CreatePatientBody;
     const firstName = isNonEmptyString(body.first_name)
       ? body.first_name.trim()
@@ -187,11 +152,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${backendBaseUrl()}/patients`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Tenant-ID": tenantID,
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
+      headers: buildUpstreamHeaders(request, "application/json"),
       body: JSON.stringify({
         name,
         document_type: documentType,
