@@ -68,7 +68,7 @@ func TestPostgresConsultationRepository_Integration(t *testing.T) {
 			t.Fatalf("error guardando consulta: %v", err)
 		}
 
-		history, err := repo.ListByPatientID(ctx, tenant1, patient1.ID(), 10, 0)
+		history, err := repo.ListByPatientID(ctx, tenantID1, patient1.ID(), 10, 0)
 		if err != nil {
 			t.Fatalf("error consultando historial: %v", err)
 		}
@@ -118,7 +118,7 @@ func TestPostgresConsultationRepository_Integration(t *testing.T) {
 		}
 
 		// Tenant 1 intenta leer el historial del paciente 2
-		history, err := repo.ListByPatientID(ctxTenant1, tenant1, patient2.ID(), 10, 0)
+		history, err := repo.ListByPatientID(ctxTenant1, tenantID1, patient2.ID(), 10, 0)
 		if err != nil {
 			t.Fatalf("error en listado RLS (debería retornar vacío pero no explotar): %v", err)
 		}

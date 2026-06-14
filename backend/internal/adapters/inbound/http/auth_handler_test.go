@@ -126,7 +126,7 @@ func TestAuthHandler_Integration(t *testing.T) {
 	logoutUC := usecases.NewLogoutUseCase(sessionRepo)
 	toggleUserStatusUC := usecases.NewToggleUserStatusUseCase(userRepo, hasher)
 
-	handler := NewAuthHandler(setupTenantUC, loginUC, logoutUC, toggleUserStatusUC, userRepo, jwtService, authMiddleware)
+	handler := NewAuthHandler(context.Background(), setupTenantUC, loginUC, logoutUC, toggleUserStatusUC, userRepo, jwtService, authMiddleware)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
