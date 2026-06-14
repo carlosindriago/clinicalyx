@@ -13,6 +13,7 @@ import (
 	"clinicalyx/backend/internal/adapters/crypto"
 	inboundHTTP "clinicalyx/backend/internal/adapters/inbound/http"
 	"clinicalyx/backend/internal/adapters/outbound/postgres"
+	"clinicalyx/backend/internal/adapters/outbound/s3"
 	"clinicalyx/backend/internal/config"
 	"clinicalyx/backend/internal/core/usecases"
 
@@ -87,6 +88,7 @@ func main() {
 	sessionRepo := postgres.NewPostgresSessionRepository(db)
 	consultationRepo := postgres.NewPostgresConsultationRepository(db, cryptoService)
 	appointmentRepo := postgres.NewPostgresAppointmentRepository(db)
+	fileRepo := postgres.NewPostgresFileRepository(db)
 	passwordHasher := crypto.NewArgon2idPasswordHasher()
 
 	// 5. Inicializar Servicio de Tokens JWT y Middleware de Autenticación
@@ -96,6 +98,19 @@ func main() {
 		time.Duration(cfg.JWTRefreshDurationDays)*24*time.Hour,
 	)
 	authMiddleware := inboundHTTP.NewAuthMiddleware(jwtService, sessionRepo)
+
+	// 5b. Inicializar Servicio de Almacenamiento S3/MinIO
+	storageService, err := s3.NewS3StorageService(
+		cfg.AWSEndpoint,
+		cfg.AWSRegion,
+		cfg.AWSAccessKeyID,
+		cfg.AWSSecretAccessKey,
+		cfg.AWSBucket,
+	)
+	if err != nil {
+		log.Fatalf("Error al inicializar servicio de almacenamiento S3: %v", err)
+	}
+	log.Println("Servicio de almacenamiento S3/MinIO inicializado exitosamente")
 
 	// 6. Inicializar Casos de Uso
 	createPatientUC := usecases.NewCreatePatientUseCase(patientRepo)
@@ -108,6 +123,7 @@ func main() {
 	getConsultationHistoryUC := usecases.NewGetConsultationHistoryUseCase(consultationRepo, patientRepo)
 	scheduleAppointmentUC := usecases.NewScheduleAppointmentUseCase(appointmentRepo, patientRepo)
 	cancelAppointmentUC := usecases.NewCancelAppointmentUseCase(appointmentRepo)
+	fileUseCases := usecases.NewFileUseCases(fileRepo, storageService)
 
 	// 7. Inicializar Controladores HTTP (Adaptadores de entrada)
 	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC, getPatientUC)
@@ -131,6 +147,7 @@ func main() {
 		cancelAppointmentUC,
 		authMiddleware,
 	)
+	fileHandler := inboundHTTP.NewFileHandler(fileUseCases)
 
 	// 8. Configurar el Servidor HTTP (Chi)
 	r := chi.NewRouter()
@@ -162,6 +179,15 @@ func main() {
 	authHandler.RegisterRoutes(r)
 	consultationHandler.RegisterRoutes(r)
 	appointmentHandler.RegisterRoutes(r)
+	
+	// Registrar rutas para archivos médicos dentro del grupo autenticado de pacientes
+	r.Route("/api/v1/patients/{patient_id}/files", func(r chi.Router) {
+		r.Use(authMiddleware.Handler) // Asegurar protección
+		r.Post("/presign", fileHandler.GenerateUploadURL)
+		r.Post("/", fileHandler.ConfirmUpload)
+		r.Get("/", fileHandler.ListFiles)
+		r.Get("/{file_id}/download", fileHandler.GetDownloadURL)
+	})
 
 	// Condicionalmente registrar Ephemeral Demo Handler protegido por el Kill Switch y el Rate Limiter
 	if cfg.EnableEphemeralDemo {
