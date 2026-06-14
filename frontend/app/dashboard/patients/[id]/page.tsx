@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ShieldCheck, Mail, Phone, CreditCard, Calendar } from "lucide-react";
 import PatientProfileTabs from "./patient-profile-tabs";
+import MedicalFileDropzone from "@/components/patients/MedicalFileDropzone";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -211,6 +212,11 @@ export default async function PatientProfilePage(props: PatientProfilePageProps)
             <div className="lg:col-span-2">
               <PatientProfileTabs patient={patient} />
             </div>
+          </div>
+
+          {/* Medical Files Section */}
+          <div className="mt-8">
+            <MedicalFileDropzone patientId={patient.id} />
           </div>
         </>
       )}
