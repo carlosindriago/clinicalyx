@@ -1,0 +1,36 @@
+# Ignorar archivos de desarrollo
+.git
+.gitignore
+*.md
+*.txt
+LICENSE
+
+# Ignorar archivos de IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Ignorar logs y temporales
+*.log
+*.tmp
+*.temp
+
+# Ignorar binarios locales
+bin/
+tmp/
+dist/
+
+# Ignorar archivos de test
+*_test.go
+test/
+coverage.out
+
+# Ignorar archivos de configuración local
+.env
+.env.local
+.env.*.local
+
+# Ignorar documentación
+docs/
+examples/
