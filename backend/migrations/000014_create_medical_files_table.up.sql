@@ -1,5 +1,5 @@
 -- Crear tabla para metadatos de archivos médicos
-CREATE TABLE medical_files (
+CREATE TABLE IF NOT EXISTS medical_files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -11,15 +11,15 @@ CREATE TABLE medical_files (
 );
 
 -- Crear índices para mejorar el rendimiento de consultas comunes
-CREATE INDEX idx_medical_files_tenant_id ON medical_files(tenant_id);
-CREATE INDEX idx_medical_files_patient_id ON medical_files(patient_id);
-CREATE INDEX idx_medical_files_created_at ON medical_files(created_at);
+CREATE INDEX IF NOT EXISTS idx_medical_files_tenant_id ON medical_files(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_medical_files_patient_id ON medical_files(patient_id);
+CREATE INDEX IF NOT EXISTS idx_medical_files_created_at ON medical_files(created_at);
 
 -- Activar Row Level Security (RLS)
 ALTER TABLE medical_files ENABLE ROW LEVEL SECURITY;
 
 -- Crear política de aislamiento por tenant
-CREATE POLICY tenant_isolation_policy ON medical_files
+CREATE POLICY IF NOT EXISTS tenant_isolation_policy ON medical_files
     USING (tenant_id = current_setting('app.current_tenant')::uuid);
 
 -- Comentarios para documentación

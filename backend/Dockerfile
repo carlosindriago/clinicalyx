@@ -28,6 +28,7 @@ RUN apk add --no-cache \
     ca-certificates \
     postgresql-client \
     tzdata \
+    curl \
     && update-ca-certificates
 
 # Crear usuario no-root para seguridad
@@ -48,6 +49,6 @@ EXPOSE 8080
 
 # Health check para Coolify
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
+  CMD curl --fail --silent --max-time 2 http://localhost:8080/healthz > /dev/null || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]
