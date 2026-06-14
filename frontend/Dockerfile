@@ -1,45 +1,44 @@
-# Stage 1: Dependencias
+# Stage 1: Dependencias - Ultra ligero
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copiar archivos de definición de dependencias
+# Copiar solo archivos necesarios para instalar dependencias
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --only=production --omit=dev
 
-# Stage 2: Compilación (Build)
+# Stage 2: Compilación - Optimizado para cache
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Copiar dependencias de producción
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js recolecta telemetría anónima de manera predeterminada. Deshabilitarla.
+# Variables de entorno para build optimizado
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Ejecutar compilación de producción
+# Build de producción con standalone mode
 RUN npm run build
 
-# Stage 3: Ejecución (Runner)
+# Stage 3: Ejecución - Imagen final ultra ligera
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Crear usuario no-root para seguridad
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
+# Copiar solo lo necesario para producción
 COPY --from=builder /app/public ./public
-
-# Setear los permisos adecuados para la carpeta de caché .next
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Optimizar el runner copiando el build standalone (si está habilitado en next.config.js)
-# O copiando los directorios necesarios por defecto
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Configurar permisos
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
@@ -47,5 +46,9 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Comando de inicio
+# Health check para Coolify
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+
+# Comando de inicio obligatorio para standalone
 CMD ["node", "server.js"]
