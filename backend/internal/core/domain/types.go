@@ -144,4 +144,31 @@ func ParseAppointmentID(s string) (AppointmentID, error) {
 	return AppointmentID(val), nil
 }
 
+// FileID es un identificador fuertemente tipado para archivos médicos.
+type FileID uuid.UUID
+
+// NewFileID genera un nuevo FileID (UUIDv4).
+func NewFileID() FileID {
+	return FileID(uuid.New())
+}
+
+// IsNil comprueba si el FileID es el valor nulo de UUID.
+func (id FileID) IsNil() bool {
+	return uuid.UUID(id) == uuid.Nil
+}
+
+// String convierte el FileID a string.
+func (id FileID) String() string {
+	return uuid.UUID(id).String()
+}
+
+// ParseFileID intenta parsear un string como FileID.
+func ParseFileID(s string) (FileID, error) {
+	val, err := uuid.Parse(s)
+	if err != nil {
+		return FileID(uuid.Nil), ErrInvalidFileID
+	}
+	return FileID(val), nil
+}
+
 

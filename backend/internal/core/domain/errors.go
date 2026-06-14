@@ -26,6 +26,13 @@ var (
 	ErrInvalidAppointmentStatus = errors.New("estado de cita inválido")
 	ErrInvalidAppointmentID   = errors.New("identificador de cita inválido")
 	ErrAppointmentNotFound    = errors.New("la cita especificada no existe")
+	
+	// Errores relacionados con archivos médicos
+	ErrInvalidFileID       = errors.New("identificador de archivo inválido")
+	ErrInvalidFileName     = errors.New("nombre de archivo inválido o vacío")
+	ErrInvalidContentType  = errors.New("tipo de contenido inválido o vacío")
+	ErrInvalidFileSize     = errors.New("tamaño de archivo inválido (debe ser mayor a 0)")
+	ErrInvalidObjectKey    = errors.New("clave de objeto inválida o vacía")
 )
 
 
