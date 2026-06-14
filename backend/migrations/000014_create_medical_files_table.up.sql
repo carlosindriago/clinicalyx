@@ -19,7 +19,10 @@ CREATE INDEX IF NOT EXISTS idx_medical_files_created_at ON medical_files(created
 ALTER TABLE medical_files ENABLE ROW LEVEL SECURITY;
 
 -- Crear política de aislamiento por tenant
-CREATE POLICY IF NOT EXISTS tenant_isolation_policy ON medical_files
+DROP POLICY IF EXISTS tenant_isolation_policy ON medical_files;
+CREATE POLICY tenant_isolation_policy ON medical_files
+    AS PERMISSIVE FOR ALL
+    TO public
     USING (tenant_id = current_setting('app.current_tenant')::uuid);
 
 -- Comentarios para documentación
