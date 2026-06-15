@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copiar solo archivos necesarios para instalar dependencias
 COPY package.json package-lock.json ./
-RUN npm ci --only=production --omit=dev
+RUN npm ci
 
 # Stage 2: Compilación - Optimizado para cache
 FROM node:20-alpine AS builder
