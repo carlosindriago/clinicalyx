@@ -45,10 +45,6 @@ RUN chmod +x /app/entrypoint.sh
 # Cambiar a usuario no-root
 USER appuser
 
-EXPOSE 8080
-
-# Health check para Coolify
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl --fail --silent --max-time 2 http://localhost:8080/healthz > /dev/null || exit 1
+EXPOSE 3000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
