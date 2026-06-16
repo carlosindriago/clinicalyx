@@ -8,7 +8,7 @@ import {
   Eye, 
   EyeOff, 
   Loader2, 
-  Activity, 
+  HeartPulse, 
   ArrowRight,
   AlertCircle,
   Play
@@ -42,6 +42,12 @@ type DemoSandboxState = {
 };
 
 const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
+
+const ROLE_LABELS: Record<DemoRole, string> = {
+  admin: "Superadmin",
+  doctor: "Doctor",
+  receptionist: "Recepcionista",
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -216,35 +222,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-[#0a0a0c] overflow-hidden font-sans">
-      {/* Fondo con gradientes premium y animaciones sutiles */}
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-gradient-to-tr from-[#1e1b4b] to-[#311042] opacity-30 blur-[120px]" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-[#0f172a] to-[#022c22] opacity-25 blur-[120px]" />
-      
-      {/* Líneas de red decorativas que transmiten tecnología médica */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 font-sans">
+      <div className="absolute inset-0" aria-hidden="true">
+        <div className="absolute left-[8%] top-16 h-64 w-64 rounded-full bg-teal-100/80 blur-3xl" />
+        <div className="absolute right-[10%] top-24 h-72 w-72 rounded-full bg-sky-100/70 blur-3xl" />
+        <div className="absolute bottom-10 left-1/3 h-80 w-80 rounded-full bg-white blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_65%_55%_at_50%_50%,#000_68%,transparent_100%)]" />
+      </div>
 
       <div className="relative z-10 w-full max-w-[460px] p-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
-        {/* Cabecera / Marca */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-2.5 shadow-[0_0_20px_rgba(16,185,129,0.3)] mb-3">
-            <Activity className="w-full h-full text-slate-950 stroke-[2.5]" />
+        <div className="mb-8 flex flex-col items-center">
+          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16)]">
+            <HeartPulse className="size-7 stroke-[2.4]" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-800">
             Clinicalyx
           </h1>
-          <p className="text-slate-400 text-sm mt-1 text-center font-medium">
-            SaaS de Gestión Clínica e Historias Médicas
+          <p className="mt-1 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            Medical Suite
+          </p>
+          <p className="mt-3 text-center text-sm font-medium text-slate-500">
+            Tu Portal Médico Multitenant Seguro
           </p>
         </div>
 
-        {/* Tarjeta de Login con Glassmorphism */}
-        <Card className="border border-slate-800/80 bg-slate-950/40 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        <Card className="rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.03)]">
           <CardHeader className="space-y-1 pb-6">
-            <CardTitle className="text-xl font-bold text-white text-center">
-              Iniciar Sesión
+            <CardTitle className="text-center text-xl font-bold text-slate-800">
+              Inicia sesión
             </CardTitle>
-            <CardDescription className="text-slate-400 text-center text-sm">
+            <CardDescription className="text-center text-sm text-slate-500">
               Ingresa los accesos de tu organización
             </CardDescription>
           </CardHeader>
@@ -253,7 +260,7 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               {/* Alerta de Error */}
               {error && (
-                <div className="flex items-start gap-2.5 p-3 rounded-lg border border-red-900/50 bg-red-950/20 text-red-400 text-xs animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="animate-in fade-in slide-in-from-top-2 flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-600 duration-300">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span className="font-medium leading-relaxed">{error}</span>
                 </div>
@@ -263,11 +270,11 @@ export default function LoginPage() {
 
               {/* Input de Email */}
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Correo Electrónico
+                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Correo electrónico
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     id="email"
                     type="email"
@@ -275,7 +282,7 @@ export default function LoginPage() {
                     placeholder="doctor@clinicalyx.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 bg-slate-900/60 border-slate-800 text-white placeholder-slate-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 transition-all rounded-lg text-sm"
+                    className="h-12 rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-teal-400 focus:ring-teal-500/20"
                   />
                 </div>
               </div>
@@ -283,15 +290,15 @@ export default function LoginPage() {
               {/* Input de Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Contraseña
                   </Label>
-                  <a href="#" className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline transition-colors font-medium">
+                  <a href="#" className="text-xs font-medium text-teal-600 transition-colors hover:text-teal-700 hover:underline">
                     ¿La olvidaste?
                   </a>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -299,12 +306,12 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 bg-slate-900/60 border-slate-800 text-white placeholder-slate-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 transition-all rounded-lg text-sm"
+                    className="h-12 rounded-2xl border-slate-200 bg-slate-50 pl-10 pr-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-teal-400 focus:ring-teal-500/20"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -315,32 +322,32 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-bold transition-all duration-300 py-5 rounded-lg shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 group cursor-pointer"
+                className="group flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(145deg,#25cbc9,#1da2be)] py-5 font-bold text-white shadow-[0_14px_28px_rgba(29,162,190,0.18)] transition-all duration-300 hover:brightness-105"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
                     <span>Autenticando...</span>
                   </>
                 ) : (
                   <>
                     <span>Ingresar</span>
-                    <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 text-white transition-transform group-hover:translate-x-1" />
                   </>
                 )}
               </Button>
 
               {demoSandbox && (
-                <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/10 p-3 text-xs text-slate-300 space-y-3">
+                <div className="space-y-3 rounded-2xl border border-teal-100 bg-teal-50/80 p-3 text-xs text-slate-600">
                   <div className="space-y-1">
-                    <p className="font-semibold text-emerald-400 uppercase tracking-wider">
+                    <p className="font-semibold uppercase tracking-wider text-teal-700">
                       Sandbox Demo Activo
                     </p>
-                    <p className="font-mono break-all text-[11px] text-slate-400">
+                    <p className="break-all font-mono text-[11px] text-slate-500">
                       Tenant: {demoSandbox.tenantId}
                     </p>
-                    <p className="text-slate-400">
-                      Este login reutiliza el tenant efimero del sandbox para que puedas entrar con cualquiera de los 3 usuarios.
+                    <p className="text-slate-500">
+                      Este login reutiliza el tenant efímero del sandbox para que puedas entrar con cualquiera de los 3 usuarios.
                     </p>
                   </div>
 
@@ -350,7 +357,7 @@ export default function LoginPage() {
                       variant="outline"
                       onClick={() => handleQuickDemoLogin("doctor")}
                       disabled={quickLoginRole !== null}
-                      className="justify-between border-emerald-500/30 text-emerald-300 hover:bg-emerald-950/20"
+                      className="justify-between rounded-2xl border-teal-200 bg-white text-teal-700 hover:bg-teal-50"
                     >
                       <span>Entrar como Doctor</span>
                       <span className="font-mono text-[10px]">{demoSandbox.credentials.doctor_email}</span>
@@ -360,9 +367,9 @@ export default function LoginPage() {
                       variant="outline"
                       onClick={() => handleQuickDemoLogin("receptionist")}
                       disabled={quickLoginRole !== null}
-                      className="justify-between border-slate-800 text-slate-200 hover:bg-slate-900"
+                      className="justify-between rounded-2xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     >
-                      <span>Entrar como Receptionist</span>
+                      <span>Entrar como Recepcionista</span>
                       <span className="font-mono text-[10px]">{demoSandbox.credentials.receptionist_email}</span>
                     </Button>
                     <Button
@@ -370,7 +377,7 @@ export default function LoginPage() {
                       variant="outline"
                       onClick={() => handleQuickDemoLogin("admin")}
                       disabled={quickLoginRole !== null}
-                      className="justify-between border-slate-800 text-slate-200 hover:bg-slate-900"
+                      className="justify-between rounded-2xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     >
                       <span>Entrar como Superadmin</span>
                       <span className="font-mono text-[10px]">{demoSandbox.credentials.admin_email}</span>
@@ -378,8 +385,8 @@ export default function LoginPage() {
                   </div>
 
                   {quickLoginRole && (
-                    <p className="text-[11px] text-emerald-400">
-                      Conectando al sandbox con el usuario seleccionado...
+                    <p className="text-[11px] text-teal-700">
+                      Conectando al sandbox con el usuario {ROLE_LABELS[quickLoginRole].toLowerCase()}...
                     </p>
                   )}
                 </div>
@@ -387,33 +394,31 @@ export default function LoginPage() {
 
               {isDemoEnabled && (
                 <>
-                  {/* Divisor Visual */}
                   <div className="relative my-4 flex items-center justify-center">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-slate-800/80" />
+                      <div className="w-full border-t border-slate-200" />
                     </div>
-                    <span className="relative z-10 bg-[#0d0d11] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <span className="relative z-10 bg-white px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       o accede al sandbox
                     </span>
                   </div>
 
-                  {/* Botón Interactivo de Demo */}
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => router.push("/demo/loading")}
-                    className="w-full border-emerald-500/30 hover:border-emerald-500/60 hover:bg-emerald-950/20 text-emerald-400 font-semibold transition-all duration-300 py-5 rounded-lg flex items-center justify-center gap-2 cursor-pointer group"
+                    className="group flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-teal-200 bg-white font-semibold text-teal-700 transition-all duration-300 hover:border-teal-300 hover:bg-teal-50"
                   >
-                    <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400 group-hover:scale-110 transition-transform" />
-                    <span>Try Interactive Demo</span>
+                    <Play className="h-3.5 w-3.5 fill-teal-600 text-teal-600 transition-transform group-hover:scale-110" />
+                    <span>Probar Demo Interactiva</span>
                   </Button>
                 </>
               )}
             </form>
           </CardContent>
 
-          <CardFooter className="pt-2 pb-6 border-t border-slate-900/80 flex justify-center">
-            <p className="text-slate-500 text-xs font-medium text-center">
+          <CardFooter className="flex justify-center border-t border-slate-100 pb-6 pt-2">
+            <p className="text-center text-xs font-medium text-slate-500">
               Clinicalyx Opencore SaaS. Todos los derechos reservados.
             </p>
           </CardFooter>
