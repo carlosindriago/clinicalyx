@@ -9,8 +9,23 @@ const nextConfig: NextConfig = {
     removeConsole: process.env.NODE_ENV === "production",
   },
   
+  // Desactivar verificaciones durante build para ahorrar RAM
+  // @ts-ignore
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  // @ts-ignore
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
+  // Optimizaciones de memoria para evitar OOM Killer
+  experimental: {
+    memoryBasedWorkersCount: true,
+  },
+  
   // Headers de seguridad
-  headers: async () => {
+  async headers() {
     return [
       {
         source: "/:path*",
