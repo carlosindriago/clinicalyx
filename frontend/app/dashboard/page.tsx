@@ -1,6 +1,7 @@
 import { CalendarDays, ShieldCheck, TrendingUp, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const metrics = [
   {
@@ -23,7 +24,34 @@ const metrics = [
   },
 ] as const;
 
-const upcomingAppointments = [
+type AppointmentStatus = "Scheduled" | "In progress" | "Cancelled";
+
+type StatusStyle = {
+  className: string;
+  dot: string;
+};
+
+const statusStyles: Record<AppointmentStatus, StatusStyle> = {
+  Scheduled: {
+    className: "bg-emerald-50 text-emerald-700",
+    dot: "bg-emerald-500",
+  },
+  "In progress": {
+    className: "bg-blue-50 text-blue-700",
+    dot: "bg-blue-500",
+  },
+  Cancelled: {
+    className: "bg-rose-50 text-rose-700",
+    dot: "bg-rose-500",
+  },
+};
+
+const upcomingAppointments: Array<{
+  time: string;
+  patient: string;
+  doctor: string;
+  status: AppointmentStatus;
+}> = [
   {
     time: "09:30 AM",
     patient: "Jonathan Smith",
@@ -48,14 +76,19 @@ const upcomingAppointments = [
     doctor: "Dr. Smith",
     status: "Scheduled",
   },
-] as const;
+];
+
+const fallbackStatus: StatusStyle = {
+  className: "bg-slate-100 text-slate-700",
+  dot: "bg-slate-500",
+};
 
 export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-emerald-500">
+          <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-teal-600">
             Clinic overview
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -66,7 +99,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <Button className="h-10 rounded-xl bg-emerald-500 px-4 font-semibold text-emerald-950 shadow-sm shadow-emerald-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-400 hover:shadow-md hover:shadow-emerald-500/30 focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50">
+        <Button className="h-10 rounded-xl bg-teal-600 px-4 font-semibold text-white shadow-sm shadow-teal-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-teal-700 hover:shadow-md hover:shadow-teal-600/35 focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50">
           + New Appointment
         </Button>
       </section>
@@ -85,7 +118,7 @@ export default function DashboardPage() {
                   {metric.label}
                 </p>
                 <Icon
-                  className="size-5 text-slate-400 transition-colors duration-200 group-hover:text-emerald-500"
+                  className="size-5 text-slate-400 transition-colors duration-200 group-hover:text-teal-600"
                   aria-hidden="true"
                 />
               </div>
@@ -93,7 +126,7 @@ export default function DashboardPage() {
                 <p className="text-4xl font-bold tracking-tight text-slate-900">
                   {metric.value}
                 </p>
-                <p className="pb-1 text-xs font-semibold text-emerald-500">
+                <p className="pb-1 text-xs font-medium text-emerald-600">
                   {metric.detail}
                 </p>
               </div>
@@ -105,11 +138,8 @@ export default function DashboardPage() {
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white text-slate-900 shadow-sm shadow-slate-900/5">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/10">
-              <TrendingUp
-                className="size-5 text-emerald-500"
-                aria-hidden="true"
-              />
+            <div className="flex size-9 items-center justify-center rounded-xl bg-teal-50">
+              <TrendingUp className="size-5 text-teal-600" aria-hidden="true" />
             </div>
             <h2 className="text-lg font-semibold text-slate-900">
               Upcoming Appointments
@@ -118,7 +148,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="rounded-lg text-emerald-500 transition-colors hover:bg-emerald-500/5 hover:text-emerald-600"
+            className="rounded-lg text-teal-600 transition-colors hover:bg-teal-50 hover:text-teal-700"
           >
             View all
           </Button>
@@ -135,28 +165,39 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {upcomingAppointments.map((appointment) => (
-                <tr
-                  key={`${appointment.time}-${appointment.patient}`}
-                  className="border-t border-slate-100 transition-colors duration-150 hover:bg-slate-50/60"
-                >
-                  <td className="px-6 py-5 text-xs font-semibold text-emerald-500">
-                    {appointment.time}
-                  </td>
-                  <td className="px-6 py-5 font-medium text-slate-900">
-                    {appointment.patient}
-                  </td>
-                  <td className="px-6 py-5 text-slate-500">
-                    {appointment.doctor}
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider text-emerald-500">
-                      <span className="size-1.5 rounded-full bg-emerald-500" />
-                      {appointment.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {upcomingAppointments.map((appointment) => {
+                const status = statusStyles[appointment.status] ?? fallbackStatus;
+
+                return (
+                  <tr
+                    key={`${appointment.time}-${appointment.patient}`}
+                    className="border-t border-slate-100 transition-colors duration-150 hover:bg-slate-50/60"
+                  >
+                    <td className="px-6 py-5 text-xs font-semibold text-teal-600">
+                      {appointment.time}
+                    </td>
+                    <td className="px-6 py-5 font-medium text-slate-900">
+                      {appointment.patient}
+                    </td>
+                    <td className="px-6 py-5 text-slate-500">
+                      {appointment.doctor}
+                    </td>
+                    <td className="px-6 py-5">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider",
+                          status.className
+                        )}
+                      >
+                        <span
+                          className={cn("size-1.5 rounded-full", status.dot)}
+                        />
+                        {appointment.status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -209,14 +209,14 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm md:flex">
       <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-6">
-        <div className="flex size-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.18)]">
+        <div className="flex size-10 items-center justify-center rounded-xl border border-teal-600/20 bg-teal-50 text-teal-700">
           <Stethoscope className="size-5" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-lg font-bold tracking-tight text-emerald-500">
+          <p className="truncate text-lg font-bold tracking-tight text-slate-900">
             Clinicalyx
           </p>
-          <p className="font-mono text-[0.62rem] uppercase tracking-[0.28em] text-muted-foreground">
+          <p className="text-[0.62rem] font-medium uppercase tracking-[0.22em] text-slate-500">
             Medical Suite
           </p>
         </div>
@@ -233,15 +233,15 @@ export function Sidebar() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "group flex min-h-11 items-center gap-3 rounded-xl border border-transparent px-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-emerald-500/20 hover:bg-emerald-500/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
+                "group flex min-h-11 items-center gap-3 rounded-xl border border-transparent px-3 text-sm font-medium text-slate-500 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
                 isActive &&
-                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 shadow-[inset_3px_0_0_rgb(16,185,129)]"
+                  "border-teal-600/15 bg-teal-50 text-teal-700 shadow-[inset_3px_0_0_rgb(13,148,136)]"
               )}
             >
               <Icon
                 className={cn(
-                  "size-4 transition-colors group-hover:text-emerald-500",
-                  isActive && "text-emerald-500"
+                  "size-4 transition-colors group-hover:text-slate-700",
+                  isActive && "text-teal-700"
                 )}
                 aria-hidden="true"
               />
@@ -253,7 +253,7 @@ export function Sidebar() {
 
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-background/60 p-3 shadow-sm">
-          <div className="flex size-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
+          <div className="flex size-10 items-center justify-center rounded-full bg-teal-50 text-teal-700">
             <UserRound className="size-4" aria-hidden="true" />
           </div>
           <div className="min-w-0">
@@ -274,7 +274,7 @@ export function Sidebar() {
                 variant="outline"
                 onClick={() => handleSwitchRole("doctor")}
                 disabled={switchingRole !== null || isLoggingOut}
-                className="justify-between rounded-xl border-emerald-500/20 text-xs"
+                className="justify-between rounded-xl border-teal-600/20 text-xs"
               >
                 <span>Doctor</span>
                 {switchingRole === "doctor" ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -307,7 +307,7 @@ export function Sidebar() {
             variant="ghost"
             onClick={handleLogout}
             disabled={switchingRole !== null || isLoggingOut}
-            className="w-full justify-between rounded-xl border border-sidebar-border bg-background/60 text-sm text-muted-foreground hover:text-foreground"
+            className="w-full justify-between rounded-xl border border-sidebar-border bg-background/60 text-sm text-slate-500 hover:text-rose-600"
           >
             <span>Cerrar sesion</span>
             {isLoggingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
