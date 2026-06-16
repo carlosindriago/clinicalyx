@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const tenantID = request.headers.get("x-tenant-id");
+    const body = await request.json();
+    const tenantID =
+      request.headers.get("x-tenant-id") ||
+      (typeof body?.tenant_id === "string" ? body.tenant_id.trim() : "");
+
     if (!tenantID) {
       return NextResponse.json(
-        { error: "El header X-Tenant-ID es obligatorio" },
+        { error: "El Tenant ID es obligatorio para autenticarte" },
         { status: 400 }
       );
     }
 
-    const body = await request.json();
     const { email, password } = body;
 
     if (!email || !password) {

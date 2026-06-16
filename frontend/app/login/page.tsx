@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Mail, 
@@ -25,6 +25,24 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 
+type DemoCredentials = {
+  admin_email: string;
+  doctor_email: string;
+  receptionist_email: string;
+  password: string;
+};
+
+type DemoRole = "doctor" | "receptionist" | "admin";
+
+type DemoSandboxState = {
+  tenantId: string;
+  password: string;
+  currentRole: DemoRole;
+  credentials: DemoCredentials;
+};
+
+const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
+
 export default function LoginPage() {
   const router = useRouter();
   
@@ -33,6 +51,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isDemoEnabled, setIsDemoEnabled] = useState(false);
+  const [demoSandbox, setDemoSandbox] = useState<DemoSandboxState | null>(null);
+  const [tenantId, setTenantId] = useState("");
+  const [quickLoginRole, setQuickLoginRole] = useState<DemoRole | null>(null);
   
   // Estados de UI
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +81,59 @@ export default function LoginPage() {
     void loadDemoRuntimeConfig();
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const storedSandbox = window.localStorage.getItem(DEMO_STORAGE_KEY);
+        if (!storedSandbox) {
+          return;
+        }
+
+        const parsed = JSON.parse(storedSandbox) as DemoSandboxState;
+        if (!parsed.tenantId || !parsed.credentials) {
+          return;
+        }
+
+        setDemoSandbox(parsed);
+        setTenantId(parsed.tenantId);
+      } catch {
+        setDemoSandbox(null);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const emailForRole = (role: DemoRole) => {
+    if (!demoSandbox) {
+      return "";
+    }
+
+    switch (role) {
+      case "doctor":
+        return demoSandbox.credentials.doctor_email;
+      case "receptionist":
+        return demoSandbox.credentials.receptionist_email;
+      case "admin":
+        return demoSandbox.credentials.admin_email;
+    }
+  };
+
+  const persistCurrentRole = (role: DemoRole) => {
+    if (!demoSandbox) {
+      return;
+    }
+
+    const updatedSandbox: DemoSandboxState = {
+      ...demoSandbox,
+      currentRole: role,
+    };
+
+    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(updatedSandbox));
+    setDemoSandbox(updatedSandbox);
+  };
+
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
@@ -70,8 +143,10 @@ export default function LoginPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(tenantId ? { "X-Tenant-ID": tenantId } : {}),
         },
         body: JSON.stringify({
+          tenant_id: tenantId,
           email: email.trim(),
           password: password,
         }),
@@ -94,6 +169,49 @@ export default function LoginPage() {
       setError(message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleQuickDemoLogin = async (role: DemoRole) => {
+    if (!demoSandbox) {
+      return;
+    }
+
+    setQuickLoginRole(role);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": demoSandbox.tenantId,
+        },
+        body: JSON.stringify({
+          tenant_id: demoSandbox.tenantId,
+          email: emailForRole(role),
+          password: demoSandbox.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo iniciar sesión en el sandbox.");
+      }
+
+      persistCurrentRole(role);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar sesión en el sandbox.";
+
+      setError(message);
+    } finally {
+      setQuickLoginRole(null);
     }
   };
 
@@ -211,6 +329,61 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
+
+              {demoSandbox && (
+                <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/10 p-3 text-xs text-slate-300 space-y-3">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-emerald-400 uppercase tracking-wider">
+                      Sandbox Demo Activo
+                    </p>
+                    <p className="font-mono break-all text-[11px] text-slate-400">
+                      Tenant: {demoSandbox.tenantId}
+                    </p>
+                    <p className="text-slate-400">
+                      Este login reutiliza el tenant efimero del sandbox para que puedas entrar con cualquiera de los 3 usuarios.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleQuickDemoLogin("doctor")}
+                      disabled={quickLoginRole !== null}
+                      className="justify-between border-emerald-500/30 text-emerald-300 hover:bg-emerald-950/20"
+                    >
+                      <span>Entrar como Doctor</span>
+                      <span className="font-mono text-[10px]">{demoSandbox.credentials.doctor_email}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleQuickDemoLogin("receptionist")}
+                      disabled={quickLoginRole !== null}
+                      className="justify-between border-slate-800 text-slate-200 hover:bg-slate-900"
+                    >
+                      <span>Entrar como Receptionist</span>
+                      <span className="font-mono text-[10px]">{demoSandbox.credentials.receptionist_email}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleQuickDemoLogin("admin")}
+                      disabled={quickLoginRole !== null}
+                      className="justify-between border-slate-800 text-slate-200 hover:bg-slate-900"
+                    >
+                      <span>Entrar como Superadmin</span>
+                      <span className="font-mono text-[10px]">{demoSandbox.credentials.admin_email}</span>
+                    </Button>
+                  </div>
+
+                  {quickLoginRole && (
+                    <p className="text-[11px] text-emerald-400">
+                      Conectando al sandbox con el usuario seleccionado...
+                    </p>
+                  )}
+                </div>
+              )}
 
               {isDemoEnabled && (
                 <>

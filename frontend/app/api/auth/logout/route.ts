@@ -1,16 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function parseTenantIdFromAccessToken(token: string | undefined): string | null {
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) {
+      return null;
+    }
+
+    const payload = JSON.parse(
+      Buffer.from(payloadPart, "base64url").toString("utf-8")
+    ) as { tenant_id?: unknown };
+
+    return typeof payload.tenant_id === "string" ? payload.tenant_id : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildUpstreamHeaders(request: NextRequest): Headers {
   const headers = new Headers();
   const cookieHeader = request.headers.get("cookie");
   const tenantHeader = request.headers.get("x-tenant-id");
+  const token = request.cookies.get("access_token")?.value;
+  const derivedTenantID = parseTenantIdFromAccessToken(token);
 
   if (cookieHeader) {
     headers.set("Cookie", cookieHeader);
   }
 
-  if (tenantHeader) {
-    headers.set("X-Tenant-ID", tenantHeader);
+  if (tenantHeader || derivedTenantID) {
+    headers.set("X-Tenant-ID", tenantHeader ?? derivedTenantID ?? "");
   }
 
   return headers;

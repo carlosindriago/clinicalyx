@@ -1,17 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
   FileText,
   LayoutDashboard,
+  Loader2,
+  LogOut,
   Settings,
   Stethoscope,
   UserRound,
   UsersRound,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
@@ -42,6 +46,30 @@ const navigationItems = [
   },
 ] as const;
 
+type DemoCredentials = {
+  admin_email: string;
+  doctor_email: string;
+  receptionist_email: string;
+  password: string;
+};
+
+type DemoRole = "doctor" | "receptionist" | "admin";
+
+type DemoSandboxState = {
+  tenantId: string;
+  password: string;
+  currentRole: DemoRole;
+  credentials: DemoCredentials;
+};
+
+const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
+
+const ROLE_LABELS: Record<DemoRole, string> = {
+  admin: "Superadmin",
+  doctor: "Doctor",
+  receptionist: "Receptionist",
+};
+
 function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") {
     return pathname === href;
@@ -52,6 +80,131 @@ function isActivePath(pathname: string, href: string) {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [demoSandbox, setDemoSandbox] = useState<DemoSandboxState | null>(null);
+  const [switchingRole, setSwitchingRole] = useState<DemoRole | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const storedSandbox = window.localStorage.getItem(DEMO_STORAGE_KEY);
+        if (!storedSandbox) {
+          return;
+        }
+
+        const parsed = JSON.parse(storedSandbox) as DemoSandboxState;
+        if (!parsed.tenantId || !parsed.credentials) {
+          return;
+        }
+
+        setDemoSandbox(parsed);
+      } catch {
+        setDemoSandbox(null);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const emailForRole = (role: DemoRole) => {
+    if (!demoSandbox) {
+      return "";
+    }
+
+    switch (role) {
+      case "doctor":
+        return demoSandbox.credentials.doctor_email;
+      case "receptionist":
+        return demoSandbox.credentials.receptionist_email;
+      case "admin":
+        return demoSandbox.credentials.admin_email;
+    }
+  };
+
+  const persistCurrentRole = (role: DemoRole) => {
+    if (!demoSandbox) {
+      return;
+    }
+
+    const updatedSandbox: DemoSandboxState = {
+      ...demoSandbox,
+      currentRole: role,
+    };
+
+    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(updatedSandbox));
+    setDemoSandbox(updatedSandbox);
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: demoSandbox
+          ? {
+              "Content-Type": "application/json",
+              "X-Tenant-ID": demoSandbox.tenantId,
+            }
+          : undefined,
+      });
+    } finally {
+      router.push("/login");
+      router.refresh();
+      setIsLoggingOut(false);
+    }
+  };
+
+  const handleSwitchRole = async (role: DemoRole) => {
+    if (!demoSandbox) {
+      return;
+    }
+
+    if (demoSandbox.currentRole === role) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    setSwitchingRole(role);
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": demoSandbox.tenantId,
+        },
+      });
+
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": demoSandbox.tenantId,
+        },
+        body: JSON.stringify({
+          tenant_id: demoSandbox.tenantId,
+          email: emailForRole(role),
+          password: demoSandbox.password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo cambiar el usuario del sandbox.");
+      }
+
+      persistCurrentRole(role);
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setSwitchingRole(null);
+    }
+  };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm md:flex">
@@ -104,9 +257,61 @@ export function Sidebar() {
             <UserRound className="size-4" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">Dr. Smith</p>
-            <p className="truncate text-xs text-muted-foreground">Senior Surgeon</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {demoSandbox ? ROLE_LABELS[demoSandbox.currentRole] : "Authenticated User"}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {demoSandbox ? emailForRole(demoSandbox.currentRole) : "Active session"}
+            </p>
           </div>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {demoSandbox && (
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleSwitchRole("doctor")}
+                disabled={switchingRole !== null || isLoggingOut}
+                className="justify-between rounded-xl border-emerald-500/20 text-xs"
+              >
+                <span>Doctor</span>
+                {switchingRole === "doctor" ? <Loader2 className="size-4 animate-spin" /> : null}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleSwitchRole("receptionist")}
+                disabled={switchingRole !== null || isLoggingOut}
+                className="justify-between rounded-xl border-sidebar-border text-xs"
+              >
+                <span>Receptionist</span>
+                {switchingRole === "receptionist" ? <Loader2 className="size-4 animate-spin" /> : null}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleSwitchRole("admin")}
+                disabled={switchingRole !== null || isLoggingOut}
+                className="justify-between rounded-xl border-sidebar-border text-xs"
+              >
+                <span>Superadmin</span>
+                {switchingRole === "admin" ? <Loader2 className="size-4 animate-spin" /> : null}
+              </Button>
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleLogout}
+            disabled={switchingRole !== null || isLoggingOut}
+            className="w-full justify-between rounded-xl border border-sidebar-border bg-background/60 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <span>Cerrar sesion</span>
+            {isLoggingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+          </Button>
         </div>
       </div>
     </aside>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   Building,
   KeyRound,
-  UserCheck
+  UserCheck,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,17 @@ interface DemoResponse {
   credentials: DemoCredentials;
 }
 
+type DemoRole = "doctor" | "receptionist" | "admin";
+
+type DemoSandboxState = {
+  tenantId: string;
+  password: string;
+  currentRole: DemoRole;
+  credentials: DemoCredentials;
+};
+
+const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
+
 // Mensajes simulados que cambian dinámicamente en la pantalla de carga
 const LOADING_STEPS = [
   "Provisioning isolated sandbox tenant...",
@@ -67,6 +79,8 @@ export default function DemoLoadingPage() {
 
   // Estado para animar el copiado de credenciales
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [switchingRole, setSwitchingRole] = useState<DemoRole | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Efecto 1: Ciclar textos de carga cada 1200ms
   useEffect(() => {
@@ -118,6 +132,21 @@ export default function DemoLoadingPage() {
     startDemoEnvironment();
   }, []);
 
+  useEffect(() => {
+    if (!demoData) {
+      return;
+    }
+
+    const sandboxState: DemoSandboxState = {
+      tenantId: demoData.tenant_id,
+      password: demoData.credentials.password,
+      currentRole: "doctor",
+      credentials: demoData.credentials,
+    };
+
+    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(sandboxState));
+  }, [demoData]);
+
   // Función para copiar texto al portapapeles de forma amigable
   const handleCopy = (text: string, fieldKey: string) => {
     navigator.clipboard.writeText(text);
@@ -125,6 +154,88 @@ export default function DemoLoadingPage() {
     setTimeout(() => {
       setCopiedField(null);
     }, 2000);
+  };
+
+  const emailForRole = (credentials: DemoCredentials, role: DemoRole) => {
+    switch (role) {
+      case "doctor":
+        return credentials.doctor_email;
+      case "receptionist":
+        return credentials.receptionist_email;
+      case "admin":
+        return credentials.admin_email;
+    }
+  };
+
+  const persistCurrentRole = (role: DemoRole) => {
+    if (!demoData) {
+      return;
+    }
+
+    const sandboxState: DemoSandboxState = {
+      tenantId: demoData.tenant_id,
+      password: demoData.credentials.password,
+      currentRole: role,
+      credentials: demoData.credentials,
+    };
+
+    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(sandboxState));
+  };
+
+  const handleEnterAsRole = async (role: DemoRole) => {
+    if (!demoData) {
+      return;
+    }
+
+    setActionError(null);
+    setSwitchingRole(role);
+
+    try {
+      if (role !== "doctor") {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-ID": demoData.tenant_id,
+          },
+        });
+
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-ID": demoData.tenant_id,
+          },
+          body: JSON.stringify({
+            tenant_id: demoData.tenant_id,
+            email: emailForRole(demoData.credentials, role),
+            password: demoData.credentials.password,
+          }),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const message =
+            payload && typeof payload.error === "string"
+              ? payload.error
+              : "No se pudo cambiar al usuario seleccionado.";
+          throw new Error(message);
+        }
+      }
+
+      persistCurrentRole(role);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error: unknown) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cambiar al usuario del sandbox."
+      );
+    } finally {
+      setSwitchingRole(null);
+    }
   };
 
   return (
@@ -244,6 +355,12 @@ export default function DemoLoadingPage() {
                 </button>
               </div>
 
+              {actionError && (
+                <div className="rounded-lg border border-red-950/40 bg-red-950/10 p-3 text-xs font-medium text-red-300">
+                  {actionError}
+                </div>
+              )}
+
               {/* Tarjetas de Credenciales */}
               <div className="grid grid-cols-1 gap-2.5 mt-2">
                 {/* 1. DOCTOR (Sesión activa) */}
@@ -262,12 +379,22 @@ export default function DemoLoadingPage() {
                       {demoData.credentials.doctor_email}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleCopy(demoData.credentials.doctor_email, "doctor")}
-                    className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {copiedField === "doctor" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCopy(demoData.credentials.doctor_email, "doctor")}
+                      className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {copiedField === "doctor" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                    <Button
+                      type="button"
+                      onClick={() => handleEnterAsRole("doctor")}
+                      disabled={switchingRole !== null}
+                      className="h-9 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-slate-950 hover:bg-emerald-400"
+                    >
+                      {switchingRole === "doctor" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* 2. RECEPCIONISTA */}
@@ -282,12 +409,23 @@ export default function DemoLoadingPage() {
                       {demoData.credentials.receptionist_email}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleCopy(demoData.credentials.receptionist_email, "receptionist")}
-                    className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {copiedField === "receptionist" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCopy(demoData.credentials.receptionist_email, "receptionist")}
+                      className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {copiedField === "receptionist" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEnterAsRole("receptionist")}
+                      disabled={switchingRole !== null}
+                      className="h-9 rounded-lg border-slate-800 px-3 text-xs font-semibold text-slate-200"
+                    >
+                      {switchingRole === "receptionist" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* 3. SUPERADMIN */}
@@ -302,12 +440,23 @@ export default function DemoLoadingPage() {
                       {demoData.credentials.admin_email}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleCopy(demoData.credentials.admin_email, "admin")}
-                    className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {copiedField === "admin" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCopy(demoData.credentials.admin_email, "admin")}
+                      className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {copiedField === "admin" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEnterAsRole("admin")}
+                      disabled={switchingRole !== null}
+                      className="h-9 rounded-lg border-slate-800 px-3 text-xs font-semibold text-slate-200"
+                    >
+                      {switchingRole === "admin" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -322,11 +471,18 @@ export default function DemoLoadingPage() {
 
             <CardFooter className="flex flex-col gap-3 pt-3 pb-6 border-t border-slate-900/80">
               <Button
-                onClick={() => router.push("/dashboard")}
+                onClick={() => handleEnterAsRole("doctor")}
+                disabled={switchingRole !== null}
                 className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-bold transition-all duration-300 py-5 rounded-lg shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 group cursor-pointer"
               >
-                <span>Enter System</span>
-                <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
+                {switchingRole === "doctor" ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                ) : (
+                  <>
+                    <span>Enter System</span>
+                    <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </Button>
             </CardFooter>
           </Card>
