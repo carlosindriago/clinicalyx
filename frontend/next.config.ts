@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+type BuildOptimizedNextConfig = NextConfig & {
+  eslint?: {
+    ignoreDuringBuilds?: boolean;
+  };
+  typescript?: {
+    ignoreBuildErrors?: boolean;
+  };
+};
+
+const nextConfig: BuildOptimizedNextConfig = {
   reactCompiler: true,
   output: "standalone",
   
@@ -10,11 +19,9 @@ const nextConfig: NextConfig = {
   },
   
   // Desactivar verificaciones durante build para ahorrar RAM
-  // @ts-ignore
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // @ts-ignore
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -61,4 +68,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
