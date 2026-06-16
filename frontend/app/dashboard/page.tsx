@@ -55,13 +55,13 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-emerald-500">
+          <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-emerald-500">
             Clinic overview
           </p>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
             Welcome back, Dr. Smith
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          <p className="mt-2 max-w-2xl text-sm text-slate-500">
             Here is what is happening in your clinic today.
           </p>
         </div>
@@ -78,16 +78,16 @@ export default function DashboardPage() {
           return (
             <article
               key={metric.label}
-              className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-sm transition hover:border-emerald-500/30"
+              className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm transition hover:border-emerald-500/30"
             >
               <div className="flex items-start justify-between gap-4">
-                <p className="font-mono text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
                   {metric.label}
                 </p>
-                <Icon className="size-5 text-muted-foreground" aria-hidden="true" />
+                <Icon className="size-5 text-slate-400" aria-hidden="true" />
               </div>
               <div className="mt-6 flex items-end gap-2">
-                <p className="text-4xl font-bold tracking-tight text-foreground">
+                <p className="text-4xl font-bold tracking-tight text-slate-900">
                   {metric.value}
                 </p>
                 <p className="pb-1 text-xs font-semibold text-emerald-500">
@@ -99,11 +99,13 @@ export default function DashboardPage() {
         })}
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
-        <div className="flex items-center justify-between border-b border-border px-6 py-5">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
           <div className="flex items-center gap-3">
             <TrendingUp className="size-5 text-emerald-500" aria-hidden="true" />
-            <h2 className="text-lg font-semibold">Upcoming Appointments</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Upcoming Appointments
+            </h2>
           </div>
           <Button variant="ghost" size="sm" className="text-emerald-500 hover:text-emerald-400">
             View all
@@ -112,7 +114,7 @@ export default function DashboardPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
-            <thead className="bg-muted/60 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <thead className="bg-slate-50 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
               <tr>
                 <th className="px-6 py-4 font-medium">Time</th>
                 <th className="px-6 py-4 font-medium">Patient name</th>
@@ -122,18 +124,21 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {upcomingAppointments.map((appointment) => (
-                <tr key={`${appointment.time}-${appointment.patient}`} className="border-t border-border">
-                  <td className="px-6 py-5 font-mono text-xs font-semibold text-emerald-500">
+                <tr
+                  key={`${appointment.time}-${appointment.patient}`}
+                  className="border-t border-slate-100"
+                >
+                  <td className="px-6 py-5 text-xs font-semibold text-emerald-500">
                     {appointment.time}
                   </td>
-                  <td className="px-6 py-5 font-medium text-foreground">
+                  <td className="px-6 py-5 font-medium text-slate-900">
                     {appointment.patient}
                   </td>
-                  <td className="px-6 py-5 text-muted-foreground">
+                  <td className="px-6 py-5 text-slate-500">
                     {appointment.doctor}
                   </td>
                   <td className="px-6 py-5">
-                    <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 font-mono text-[0.65rem] uppercase tracking-wider text-emerald-500">
+                    <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider text-emerald-500">
                       {appointment.status}
                     </span>
                   </td>
