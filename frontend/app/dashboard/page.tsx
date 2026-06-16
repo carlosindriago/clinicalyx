@@ -88,18 +88,18 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-teal-600">
+          <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-teal-600 dark:text-teal-400">
             Clinic overview
           </p>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             Welcome back, Dr. Smith
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">
+          <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
             Here is what is happening in your clinic today.
           </p>
         </div>
 
-        <Button className="h-10 rounded-xl bg-teal-600 px-4 font-semibold text-white shadow-sm shadow-teal-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-teal-700 hover:shadow-md hover:shadow-teal-600/35 focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50">
+        <Button className="h-10 rounded-xl bg-teal-600 px-4 font-semibold text-white shadow-sm shadow-teal-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-teal-700 hover:shadow-md hover:shadow-teal-600/35 focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 dark:bg-teal-700 dark:shadow-teal-700/30 dark:hover:bg-teal-600 dark:hover:shadow-teal-600/40 dark:focus-visible:ring-teal-400/40 dark:focus-visible:ring-offset-slate-950">
           + New Appointment
         </Button>
       </section>
@@ -111,22 +111,22 @@ export default function DashboardPage() {
           return (
             <article
               key={metric.label}
-              className="group rounded-2xl border border-slate-200/80 bg-white p-6 text-slate-900 shadow-sm shadow-slate-900/5 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/[0.08]"
+              className="group rounded-2xl border border-slate-200/80 bg-white p-6 text-slate-900 shadow-sm shadow-slate-900/5 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/[0.08] dark:border-slate-800/50 dark:bg-slate-900 dark:text-slate-100 dark:shadow-slate-950/30 dark:hover:border-slate-700 dark:hover:shadow-slate-950/40"
             >
               <div className="flex items-start justify-between gap-4">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                   {metric.label}
                 </p>
                 <Icon
-                  className="size-5 text-slate-400 transition-colors duration-200 group-hover:text-teal-600"
+                  className="size-5 text-slate-400 transition-colors duration-200 group-hover:text-teal-600 dark:text-slate-500 dark:group-hover:text-teal-400"
                   aria-hidden="true"
                 />
               </div>
               <div className="mt-6 flex items-end gap-2">
-                <p className="text-4xl font-bold tracking-tight text-slate-900">
+                <p className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   {metric.value}
                 </p>
-                <p className="pb-1 text-xs font-medium text-emerald-600">
+                <p className="pb-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                   {metric.detail}
                 </p>
               </div>
@@ -135,20 +135,20 @@ export default function DashboardPage() {
         })}
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white text-slate-900 shadow-sm shadow-slate-900/5">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white text-slate-900 shadow-sm shadow-slate-900/5 dark:border-slate-800/50 dark:bg-slate-900 dark:text-slate-100 dark:shadow-slate-950/30">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-teal-50">
-              <TrendingUp className="size-5 text-teal-600" aria-hidden="true" />
+            <div className="flex size-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/30">
+              <TrendingUp className="size-5 text-teal-600 dark:text-teal-400" aria-hidden="true" />
             </div>
-            <h2 className="text-lg font-semibold text-slate-900">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Upcoming Appointments
             </h2>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="rounded-lg text-teal-600 transition-colors hover:bg-teal-50 hover:text-teal-700"
+            className="rounded-lg text-teal-600 transition-colors hover:bg-teal-50 hover:text-teal-700 dark:text-teal-400 dark:hover:bg-teal-900/30 dark:hover:text-teal-300"
           >
             View all
           </Button>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
-            <thead className="bg-slate-50/80 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+            <thead className="bg-slate-50/80 text-xs font-medium uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
               <tr>
                 <th className="px-6 py-4 font-medium">Time</th>
                 <th className="px-6 py-4 font-medium">Patient name</th>
@@ -171,15 +171,15 @@ export default function DashboardPage() {
                 return (
                   <tr
                     key={`${appointment.time}-${appointment.patient}`}
-                    className="border-t border-slate-100 transition-colors duration-150 hover:bg-slate-50/60"
+                    className="border-t border-slate-100 transition-colors duration-150 hover:bg-slate-50/60 dark:border-slate-800 dark:hover:bg-slate-800/40"
                   >
-                    <td className="px-6 py-5 text-xs font-semibold text-teal-600">
+                    <td className="px-6 py-5 text-xs font-semibold text-teal-600 dark:text-teal-400">
                       {appointment.time}
                     </td>
-                    <td className="px-6 py-5 font-medium text-slate-900">
+                    <td className="px-6 py-5 font-medium text-slate-900 dark:text-slate-100">
                       {appointment.patient}
                     </td>
-                    <td className="px-6 py-5 text-slate-500">
+                    <td className="px-6 py-5 text-slate-500 dark:text-slate-400">
                       {appointment.doctor}
                     </td>
                     <td className="px-6 py-5">
