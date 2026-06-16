@@ -37,11 +37,11 @@ export function GlobalSearch() {
       <button
         type="submit"
         disabled={isPending}
-        className="absolute left-3 top-1/2 size-8 -translate-y-1/2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-        aria-label="Search patient"
+        className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-[16px] text-teal-600 transition-colors hover:text-teal-700 disabled:opacity-50 dark:text-teal-300 dark:hover:text-teal-200"
+        aria-label="Buscar paciente"
       >
         {isPending ? (
-          <Loader2 className="size-4 animate-spin text-emerald-500" aria-hidden="true" />
+          <Loader2 className="size-4 animate-spin text-teal-500" aria-hidden="true" />
         ) : (
           <Search className="size-4" aria-hidden="true" />
         )}
@@ -50,9 +50,9 @@ export function GlobalSearch() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         type="search"
-        aria-label="Global search"
-        placeholder="Search patients by exact Document ID..."
-        className="h-10 rounded-xl border-border bg-muted/40 pl-10 text-sm shadow-sm focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500"
+        aria-label="Buscador global"
+        placeholder="Buscar pacientes por número de documento exacto..."
+        className="h-14 rounded-[22px] border-white/60 bg-white/72 pl-14 text-sm shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] placeholder:text-slate-500 focus-visible:border-teal-400 focus-visible:ring-teal-500/20 dark:border-white/8 dark:bg-slate-950/48 dark:placeholder:text-slate-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_8px_20px_rgba(0,0,0,0.24)]"
         disabled={isPending}
         autoComplete="off"
       />
