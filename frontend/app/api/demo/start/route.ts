@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 
+export async function GET() {
+  return NextResponse.json({
+    enabled: process.env.NEXT_PUBLIC_ENABLE_EPHEMERAL_DEMO === "true",
+  });
+}
+
 export async function POST() {
   try {
     // Obtener la URL de conexión del backend desde variables de entorno

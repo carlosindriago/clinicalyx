@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Mail, 
@@ -32,10 +32,33 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isDemoEnabled, setIsDemoEnabled] = useState(false);
   
   // Estados de UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadDemoRuntimeConfig = async () => {
+      try {
+        const response = await fetch("/api/demo/start", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data: { enabled?: boolean } = await response.json();
+        setIsDemoEnabled(data.enabled === true);
+      } catch {
+        setIsDemoEnabled(false);
+      }
+    };
+
+    void loadDemoRuntimeConfig();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,7 +212,7 @@ export default function LoginPage() {
                 )}
               </Button>
 
-              {process.env.NEXT_PUBLIC_ENABLE_EPHEMERAL_DEMO === "true" && (
+              {isDemoEnabled && (
                 <>
                   {/* Divisor Visual */}
                   <div className="relative my-4 flex items-center justify-center">
