@@ -14,6 +14,7 @@ import {
   Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RoleIllustration } from "@/components/role-illustration";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -357,9 +358,12 @@ export default function LoginPage() {
                       variant="outline"
                       onClick={() => handleQuickDemoLogin("doctor")}
                       disabled={quickLoginRole !== null}
-                      className="justify-between rounded-2xl border-teal-200 bg-white text-teal-700 hover:bg-teal-50"
+                      className="h-auto justify-between rounded-2xl border-teal-200 bg-white py-2 text-teal-700 hover:bg-teal-50"
                     >
-                      <span>Entrar como Doctor</span>
+                      <span className="flex items-center gap-2">
+                        <RoleIllustration role="doctor" compact className="size-8" />
+                        <span>Entrar como Doctor</span>
+                      </span>
                       <span className="font-mono text-[10px]">{demoSandbox.credentials.doctor_email}</span>
                     </Button>
                     <Button
@@ -367,9 +371,12 @@ export default function LoginPage() {
                       variant="outline"
                       onClick={() => handleQuickDemoLogin("receptionist")}
                       disabled={quickLoginRole !== null}
-                      className="justify-between rounded-2xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="h-auto justify-between rounded-2xl border-slate-200 bg-white py-2 text-slate-700 hover:bg-slate-50"
                     >
-                      <span>Entrar como Recepcionista</span>
+                      <span className="flex items-center gap-2">
+                        <RoleIllustration role="receptionist" compact className="size-8" />
+                        <span>Entrar como Recepcionista</span>
+                      </span>
                       <span className="font-mono text-[10px]">{demoSandbox.credentials.receptionist_email}</span>
                     </Button>
                     <Button
@@ -377,9 +384,12 @@ export default function LoginPage() {
                       variant="outline"
                       onClick={() => handleQuickDemoLogin("admin")}
                       disabled={quickLoginRole !== null}
-                      className="justify-between rounded-2xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="h-auto justify-between rounded-2xl border-slate-200 bg-white py-2 text-slate-700 hover:bg-slate-50"
                     >
-                      <span>Entrar como Superadmin</span>
+                      <span className="flex items-center gap-2">
+                        <RoleIllustration role="admin" compact className="size-8" />
+                        <span>Entrar como Superadmin</span>
+                      </span>
                       <span className="font-mono text-[10px]">{demoSandbox.credentials.admin_email}</span>
                     </Button>
                   </div>

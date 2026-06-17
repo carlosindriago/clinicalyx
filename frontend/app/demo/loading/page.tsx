@@ -16,6 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RoleIllustration } from "@/components/role-illustration";
 import {
   Card,
   CardContent,
@@ -364,8 +365,10 @@ export default function DemoLoadingPage() {
               {/* Tarjetas de Credenciales */}
               <div className="grid grid-cols-1 gap-2.5 mt-2">
                 {/* 1. DOCTOR (Sesión activa) */}
-                <div className="relative group border border-emerald-500/30 bg-emerald-950/5 p-3 rounded-lg flex items-center justify-between transition-all duration-300 hover:border-emerald-500/50">
-                  <div className="space-y-0.5">
+                <div className="relative group flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-950/5 p-3 transition-all duration-300 hover:border-emerald-500/50">
+                  <div className="flex items-center gap-3">
+                    <RoleIllustration role="doctor" compact />
+                    <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
                         DOCTOR
@@ -378,6 +381,7 @@ export default function DemoLoadingPage() {
                     <p className="text-xs font-mono text-white font-medium mt-1">
                       {demoData.credentials.doctor_email}
                     </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -398,16 +402,19 @@ export default function DemoLoadingPage() {
                 </div>
 
                 {/* 2. RECEPCIONISTA */}
-                <div className="group border border-slate-900 bg-slate-950/20 p-3 rounded-lg flex items-center justify-between transition-all duration-300 hover:border-slate-800">
-                  <div className="space-y-0.5">
+                <div className="group flex items-center justify-between rounded-lg border border-slate-900 bg-slate-950/20 p-3 transition-all duration-300 hover:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <RoleIllustration role="receptionist" compact />
+                    <div className="space-y-0.5">
                     <div>
                       <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                        RECEPTIONIST
+                        RECEPCIONISTA
                       </span>
                     </div>
                     <p className="text-xs font-mono text-slate-300 font-medium mt-1">
                       {demoData.credentials.receptionist_email}
                     </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -429,8 +436,10 @@ export default function DemoLoadingPage() {
                 </div>
 
                 {/* 3. SUPERADMIN */}
-                <div className="group border border-slate-900 bg-slate-950/20 p-3 rounded-lg flex items-center justify-between transition-all duration-300 hover:border-slate-800">
-                  <div className="space-y-0.5">
+                <div className="group flex items-center justify-between rounded-lg border border-slate-900 bg-slate-950/20 p-3 transition-all duration-300 hover:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <RoleIllustration role="admin" compact />
+                    <div className="space-y-0.5">
                     <div>
                       <span className="text-[10px] uppercase font-bold tracking-wider text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">
                         SUPERADMIN
@@ -439,6 +448,7 @@ export default function DemoLoadingPage() {
                     <p className="text-xs font-mono text-slate-300 font-medium mt-1">
                       {demoData.credentials.admin_email}
                     </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button

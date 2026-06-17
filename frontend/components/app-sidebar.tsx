@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RoleIllustration } from "@/components/role-illustration";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
@@ -258,8 +259,12 @@ export function Sidebar() {
       <div className="mt-auto space-y-3">
         <details className="group rounded-[28px] border border-white/10 bg-white/8 p-3 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),12px_14px_30px_rgba(4,18,34,0.2)] backdrop-blur-sm">
           <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[22px] px-2 py-1.5 outline-none">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] text-base font-bold text-[#0e7490] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
-              R
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
+              <RoleIllustration
+                role={demoSandbox?.currentRole ?? "receptionist"}
+                compact
+                className="scale-[1.18]"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">
@@ -303,7 +308,10 @@ export function Sidebar() {
                           "bg-[linear-gradient(145deg,rgba(216,251,250,0.98),rgba(151,242,236,0.92))] text-[#0f766e] hover:text-[#0f766e]"
                       )}
                     >
-                      <span>{ROLE_LABELS[role]}</span>
+                      <span className="flex items-center gap-2">
+                        <RoleIllustration role={role} compact className="size-8 rounded-full" />
+                        <span>{ROLE_LABELS[role]}</span>
+                      </span>
                       {switchingRole === role ? (
                         <Loader2 className="size-4 animate-spin" />
                       ) : null}
