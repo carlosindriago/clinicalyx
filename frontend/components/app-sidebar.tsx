@@ -227,7 +227,10 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav aria-label="Authenticated navigation" className="flex-1 space-y-3 px-1 py-8">
+      <nav
+        aria-label="Authenticated navigation"
+        className="flex-1 space-y-3 overflow-visible px-1 py-8"
+      >
         {navigationItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
           const Icon = item.icon;
@@ -238,9 +241,9 @@ export function Sidebar() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "group flex min-h-12 items-center gap-3 rounded-[22px] px-4 text-sm font-medium text-white/78 transition-all duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                "group relative z-10 flex min-h-12 items-center gap-3 overflow-visible rounded-[22px] px-4 text-sm font-medium text-white/78 transition-[background-color,box-shadow,color,transform] duration-300 ease-out hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                 isActive &&
-                  "bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),12px_14px_28px_rgba(4,18,34,0.24)]"
+                  "rounded-[24px_0_0_24px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] pr-6 text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),12px_14px_28px_rgba(4,18,34,0.24)] after:pointer-events-none after:absolute after:-right-7 after:top-1/2 after:h-[calc(100%+10px)] after:w-10 after:-translate-y-1/2 after:rounded-[0_26px_26px_0] after:bg-[linear-gradient(180deg,#dff8f7_0%,#ebfbfb_50%,#f7fcfc_100%)] after:shadow-[18px_0_28px_rgba(141,202,210,0.22)] before:pointer-events-none before:absolute before:-right-2 before:top-1/2 before:h-[calc(100%-10px)] before:w-8 before:-translate-y-1/2 before:rounded-r-[22px] before:bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] before:shadow-[8px_0_18px_rgba(151,242,236,0.18)] dark:after:bg-[radial-gradient(circle_at_left,#17324c_0%,#0d2236_55%,#081725_100%)] dark:after:shadow-[18px_0_30px_rgba(0,0,0,0.24)]"
               )}
             >
               <Icon
