@@ -5,6 +5,15 @@ import {
   TrendingUp,
   UsersRound,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,9 +39,16 @@ const metrics = [
   },
 ] as const;
 
-const activityData = [34, 48, 41, 64, 59, 76, 68, 88];
-
-const activityLabels = ["01", "05", "09", "13", "17", "21", "25", "30"];
+const monthlyData = [
+  { day: "01", pacientes: 12 },
+  { day: "05", pacientes: 18 },
+  { day: "09", pacientes: 15 },
+  { day: "13", pacientes: 24 },
+  { day: "17", pacientes: 22 },
+  { day: "21", pacientes: 28 },
+  { day: "25", pacientes: 32 },
+  { day: "30", pacientes: 26 },
+];
 
 type AppointmentStatus = "Programado" | "En progreso";
 
@@ -92,40 +108,9 @@ const fallbackStatus: StatusStyle = {
   dot: "bg-slate-500",
 };
 
-function getActivityPoints() {
-  const width = 100;
-  const height = 100;
-  const maxValue = Math.max(...activityData);
-  const minValue = Math.min(...activityData);
-  const range = maxValue - minValue || 1;
 
-  return activityData.map((value, index) => {
-    const x = (index / (activityData.length - 1)) * width;
-    const y = height - ((value - minValue) / range) * 72 - 14;
-
-    return { x, y };
-  });
-}
-
-function buildLinePath(points: Array<{ x: number; y: number }>) {
-  return points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-}
-
-function buildAreaPath(points: Array<{ x: number; y: number }>) {
-  const line = buildLinePath(points);
-  const lastPoint = points[points.length - 1];
-  const firstPoint = points[0];
-
-  return `${line} L ${lastPoint.x} 100 L ${firstPoint.x} 100 Z`;
-}
 
 export default function DashboardPage() {
-  const chartPoints = getActivityPoints();
-  const linePath = buildLinePath(chartPoints);
-  const areaPath = buildAreaPath(chartPoints);
-
   return (
     <div className="space-y-7">
       <section className="grid gap-6 xl:grid-cols-12">
@@ -213,55 +198,39 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="mt-6 h-[320px] rounded-[28px] border border-white/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(233,252,251,0.96)_100%)] p-5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),10px_12px_28px_rgba(130,188,198,0.16)] dark:border-white/8 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.84)_0%,rgba(9,18,31,0.92)_100%)] dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),10px_12px_24px_rgba(0,0,0,0.24)]">
-            <svg viewBox="0 0 100 100" className="h-full w-full" preserveAspectRatio="none" aria-label="Gráfico de actividad de pacientes">
-              <defs>
-                <linearGradient id="activity-fill" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(43,205,199,0.42)" />
-                  <stop offset="100%" stopColor="rgba(43,205,199,0.03)" />
-                </linearGradient>
-              </defs>
-
-              {[20, 40, 60, 80].map((gridY) => (
-                <line
-                  key={gridY}
-                  x1="0"
-                  x2="100"
-                  y1={gridY}
-                  y2={gridY}
-                  stroke="rgba(148,163,184,0.16)"
-                  strokeDasharray="2 3"
+          <div className="mt-6 rounded-[28px] border border-white/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(233,252,251,0.96)_100%)] p-5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),10px_12px_28px rgba(130,188,198,0.16)] dark:border-white/8 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.84)_0%,rgba(9,18,31,0.92)_100%)] dark:shadow-[inset_1px_1px_0 rgba(255,255,255,0.04),10px_12px_24px rgba(0,0,0,0.24)]">
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorPacientes" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#64748b" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b" }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    backgroundColor: "rgba(255, 255, 255, 0.92)",
+                    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.08)",
+                    padding: "12px 16px",
+                  }}
+                  formatter={(value) => [`${value} pacientes`, "Actividad"]}
+                  labelFormatter={(label) => `Día ${label}`}
                 />
-              ))}
-
-              <path d={areaPath} fill="url(#activity-fill)" />
-              <path
-                d={linePath}
-                fill="none"
-                stroke="#23c9c4"
-                strokeWidth="2.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {chartPoints.map((point) => (
-                <circle
-                  key={`${point.x}-${point.y}`}
-                  cx={point.x}
-                  cy={point.y}
-                  r="2.6"
-                  fill="#ffffff"
-                  stroke="#23c9c4"
-                  strokeWidth="2"
+                <Area
+                  type="monotone"
+                  dataKey="pacientes"
+                  stroke="#0d9488"
+                  strokeWidth={3}
+                  fill="url(#colorPacientes)"
+                  fillOpacity={1}
                 />
-              ))}
-            </svg>
-
-            <div className="mt-4 grid grid-cols-8 text-center text-xs font-medium text-slate-500 dark:text-slate-400">
-              {activityLabels.map((label) => (
-                <span key={label}>{label}</span>
-              ))}
-            </div>
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </article>
       </section>
