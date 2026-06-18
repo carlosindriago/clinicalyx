@@ -231,7 +231,7 @@ export function Sidebar() {
 
       <nav
         aria-label="Authenticated navigation"
-        className="flex-1 space-y-2.5 overflow-visible px-0.5 py-6"
+        className="flex-1 space-y-2 overflow-visible px-4 py-6"
       >
         {navigationItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
@@ -243,15 +243,15 @@ export function Sidebar() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "group relative z-10 flex min-h-11 items-center gap-3 overflow-visible rounded-[18px] px-4 text-[0.92rem] font-medium text-white/88 transition-[background-color,box-shadow,color,transform] duration-300 ease-out hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                "group flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-[0.92rem] font-medium text-slate-300 transition-colors duration-200 ease-out hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                 isActive &&
-                  "mr-[-0.3rem] rounded-[18px_999px_999px_18px] bg-[linear-gradient(145deg,#ffffff_0%,#f7ffff_46%,#ddfcfb_100%)] pr-6 text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.98),12px_16px_24px_rgba(4,18,34,0.14)] after:pointer-events-none after:absolute after:-right-4 after:top-1/2 after:h-[calc(100%-10px)] after:w-5 after:-translate-y-1/2 after:rounded-r-[999px] after:bg-[linear-gradient(180deg,#f6ffff_0%,#dcfbfa_100%)] after:shadow-[10px_0_16px_rgba(141,202,210,0.16)] before:pointer-events-none before:absolute before:left-4 before:top-1/2 before:h-5 before:w-1.5 before:-translate-y-1/2 before:rounded-full before:bg-[#19b7b0]"
+                  "bg-teal-500/20 text-teal-300 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(4,18,34,0.12)]"
               )}
             >
               <Icon
                 className={cn(
                   "size-4.5 transition-colors group-hover:text-white",
-                  isActive ? "text-[#19b7b0]" : "text-white/92"
+                  isActive ? "text-teal-300" : "text-slate-300"
                 )}
                 aria-hidden="true"
               />
@@ -338,13 +338,13 @@ export function Sidebar() {
           </div>
         </details>
 
-        <div className="rounded-[16px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm">
+        <div className="p-1">
           <Button
             type="button"
             variant="ghost"
             onClick={handleLogout}
             disabled={switchingRole !== null || isLoggingOut}
-            className="h-9 w-full justify-between rounded-[14px] px-3 text-[0.83rem] font-medium text-white/88 hover:bg-white/10 hover:text-white"
+            className="h-10 w-full justify-between rounded-xl border border-transparent px-4 text-[0.9rem] font-medium text-slate-300 shadow-none hover:bg-white/5 hover:text-white"
           >
             <span className="flex items-center gap-2">
               <LogOut className="size-4" aria-hidden="true" />
