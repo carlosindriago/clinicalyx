@@ -38,46 +38,53 @@ export default function DashboardLayout({
         <div className="relative min-h-screen">
           <header className="sticky top-0 z-30 px-4 pt-4 sm:px-6 lg:px-8">
             <div className="flex min-h-[5.25rem] items-center gap-4 rounded-[30px] border border-white/55 bg-white/58 px-4 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),14px_18px_36px_rgba(122,176,190,0.22),-10px_-10px_24px_rgba(255,255,255,0.65)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-950/42 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),14px_18px_36px_rgba(0,0,0,0.28)]">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-lg"
-              aria-label="Abrir menu de navegacion"
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="flex rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 md:hidden dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
-            >
-              <Menu className="size-5" aria-hidden="true" />
-            </Button>
-            <Suspense
-              fallback={
-                <div className="relative max-w-xl flex-1">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    disabled
-                    placeholder="Buscando pacientes..."
-                    className="h-14 rounded-[22px] border-white/60 bg-white/70 pl-12 text-sm shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)]"
-                  />
-                </div>
-              }
-            >
-              <GlobalSearch />
-            </Suspense>
+              <div className="flex items-center md:w-16 md:justify-start">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  aria-label="Abrir menu de navegacion"
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="flex rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 md:hidden dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
+                >
+                  <Menu className="size-5" aria-hidden="true" />
+                </Button>
+              </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-lg"
-              aria-label="Notificaciones"
-              className="relative rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
-            >
-              <Bell className="size-5" aria-hidden="true" />
-              <span className="absolute right-3 top-3 size-2.5 rounded-full bg-[#38d9cf] ring-4 ring-white/80 dark:ring-slate-950/90" />
-            </Button>
+              <div className="flex flex-1 justify-center">
+                <Suspense
+                  fallback={
+                    <div className="relative w-full max-w-2xl">
+                      <Search
+                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <Input
+                        disabled
+                        placeholder="Buscando pacientes..."
+                        className="h-14 rounded-[22px] border-white/60 bg-white/70 pl-12 text-sm shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)]"
+                      />
+                    </div>
+                  }
+                >
+                  <GlobalSearch />
+                </Suspense>
+              </div>
 
-            <ThemeToggle />
+              <div className="flex items-center justify-end gap-3 md:w-32">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  aria-label="Notificaciones"
+                  className="relative rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
+                >
+                  <Bell className="size-5" aria-hidden="true" />
+                  <span className="absolute right-3 top-3 size-2.5 rounded-full bg-[#38d9cf] ring-4 ring-white/80 dark:ring-slate-950/90" />
+                </Button>
+
+                <ThemeToggle />
+              </div>
             </div>
           </header>
 

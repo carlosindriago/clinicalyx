@@ -33,7 +33,7 @@ export function GlobalSearch() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative max-w-xl flex-1">
+    <form onSubmit={handleSubmit} className="relative w-full max-w-2xl">
       <button
         type="submit"
         disabled={isPending}
