@@ -127,6 +127,14 @@ func main() {
 	fileUseCases := usecases.NewFileUseCases(fileRepo, storageService)
 
 	// 7. Inicializar Controladores HTTP (Adaptadores de entrada)
+	// Construir la lista de proxies confiables desde la configuración.
+	// Si está vacía, el rate limiter usará siempre RemoteAddr (modo
+	// seguro por defecto: nunca se confía en headers de proxy).
+	trustedProxies := inboundHTTP.NewTrustedProxiesFromCIDRs(cfg.TrustedProxiesIPs)
+	if len(cfg.TrustedProxiesIPs) == 0 {
+		log.Println("[INFO] TRUSTED_PROXIES_IPS ausente: el rate limiter usará solo RemoteAddr (no se honra X-Forwarded-For ni X-Real-IP).")
+	}
+
 	patientHandler := inboundHTTP.NewPatientHandler(createPatientUC, getPatientUC)
 	authHandler := inboundHTTP.NewAuthHandler(
 		ctx,
@@ -137,6 +145,7 @@ func main() {
 		userRepo,
 		jwtService,
 		authMiddleware,
+		trustedProxies,
 	)
 	// Inyectar el middleware de setup-token desde la configuración. Si
 	// SETUP_TOKEN está vacío, el endpoint /api/v1/auth/setup queda cerrado
@@ -209,7 +218,7 @@ func main() {
 	if cfg.EnableEphemeralDemo {
 		demoHandler := inboundHTTP.NewDemoHandler(db, cryptoService, passwordHasher, jwtService, sessionRepo)
 		r.Group(func(r chi.Router) {
-			r.Use(inboundHTTP.NewDemoRateLimiter(ctx))
+			r.Use(inboundHTTP.NewDemoRateLimiter(ctx, trustedProxies))
 			demoHandler.RegisterRoutes(r)
 		})
 		log.Println("Módulo Ephemeral Demo Mode habilitado en /api/v1/demo/start")

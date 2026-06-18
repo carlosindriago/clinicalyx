@@ -47,9 +47,13 @@ type AuthHandler struct {
 	authMiddleware     *AuthMiddleware
 	loginRateLimiter   func(http.Handler) http.Handler
 	setupTokenMW       func(http.Handler) http.Handler
+	trustedProxies     *trustedProxies
 }
 
 // NewAuthHandler construye una instancia de AuthHandler.
+//
+// Si trustedProxies es nil o está vacío, el rate limiter de login usará
+// siempre RemoteAddr (modo seguro por defecto).
 func NewAuthHandler(
 	ctx context.Context,
 	setupTenantUC *usecases.SetupTenantUseCase,
@@ -59,6 +63,7 @@ func NewAuthHandler(
 	userRepo ports.UserRepository,
 	jwtService *crypto.JWTService,
 	authMiddleware *AuthMiddleware,
+	trustedProxies *trustedProxies,
 ) *AuthHandler {
 	return &AuthHandler{
 		setupTenantUC:      setupTenantUC,
@@ -68,7 +73,8 @@ func NewAuthHandler(
 		userRepo:           userRepo,
 		jwtService:         jwtService,
 		authMiddleware:     authMiddleware,
-		loginRateLimiter:   NewLoginRateLimiter(ctx),
+		loginRateLimiter:   NewLoginRateLimiter(ctx, trustedProxies),
+		trustedProxies:     trustedProxies,
 		// setupTokenMW queda nil hasta que main.go llame a
 		// SetSetupTokenMiddleware. El getter setupTokenMiddleware() aplica
 		// un fail-closed por defecto.

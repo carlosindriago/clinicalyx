@@ -58,7 +58,7 @@ func (i *IPRateLimiter) getLimiter(ip string) *rate.Limiter {
 func (i *IPRateLimiter) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -76,8 +76,112 @@ func (i *IPRateLimiter) cleanupLoop(ctx context.Context) {
 	}
 }
 
-// ExtractIP extrae la IP real del cliente considerando cabeceras de proxy
-func ExtractIP(r *http.Request) string {
+// trustedProxies contiene la lista de CIDRs/IPs de proxies que tienen
+// permiso para fijar X-Forwarded-For / X-Real-IP. Si está vacía, ninguna
+// fuente de proxy se considera confiable y siempre se usa RemoteAddr.
+//
+// Estructura inmutable tras la construcción; thread-safe sin lock.
+type trustedProxies struct {
+	nets []*net.IPNet
+	ips  []net.IP
+}
+
+// newTrustedProxiesFromCIDRs parsea una lista de CIDRs (e.g. "10.0.0.0/8",
+// "192.168.1.1") y devuelve una estructura consultable. Las entradas
+// inválidas se ignoran silenciosamente para no abortar el arranque por
+// un valor mal escrito en la configuración; el operador verá logs de
+// advertencia en el llamador si lo desea.
+func newTrustedProxiesFromCIDRs(entries []string) *trustedProxies {
+	return newTrustedProxiesFromCIDRsInternal(entries)
+}
+
+// newTrustedProxiesFromCIDRsInternal es la implementación real (no exportada).
+func newTrustedProxiesFromCIDRsInternal(entries []string) *trustedProxies {
+	tp := &trustedProxies{}
+	for _, e := range entries {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue
+		}
+		// Si tiene "/", interpretarlo como CIDR. Si no, tratarlo como IP suelta.
+		if strings.Contains(e, "/") {
+			_, ipnet, err := net.ParseCIDR(e)
+			if err != nil {
+				continue
+			}
+			tp.nets = append(tp.nets, ipnet)
+		} else {
+			ip := net.ParseIP(e)
+			if ip == nil {
+				continue
+			}
+			tp.ips = append(tp.ips, ip)
+		}
+	}
+	return tp
+}
+
+// NewTrustedProxiesFromCIDRs es el wrapper público para que main.go pueda
+// construir la lista de proxies confiables desde la configuración sin
+// tener que duplicar el parsing.
+func NewTrustedProxiesFromCIDRs(entries []string) *trustedProxies {
+	return newTrustedProxiesFromCIDRsInternal(entries)
+}
+
+// containsIP verifica si la IP pertenece a algún CIDR o IP listada.
+func (tp *trustedProxies) containsIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	for _, n := range tp.nets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	for _, i := range tp.ips {
+		if i.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// ExtractIP extrae la IP del cliente de forma SEGURA.
+//
+// Política:
+//
+//  1. Si la conexión proviene de un proxy confiable (TRUSTED_PROXIES_IPS),
+//     se honra X-Forwarded-For (tomando la primera IP de la cadena) o
+//     X-Real-IP como fallback. Esto es el comportamiento esperado cuando
+//     hay un reverse proxy legítimo (Cloudflare, nginx, ALB) frente al
+//     servidor.
+//
+//  2. Si la conexión NO proviene de un proxy confiable, se ignora
+//     completamente X-Forwarded-For/X-Real-IP y se usa RemoteAddr. Esto
+//     previene el ataque de spoofing donde un cliente envía el header
+//     con una IP arbitraria para bypasear el rate limit por IP.
+//
+//  3. Si TRUSTED_PROXIES_IPS está vacío (modo seguro por defecto), el
+//     paso 1 nunca se aplica y siempre se usa RemoteAddr.
+func ExtractIP(r *http.Request, trusted *trustedProxies) string {
+	// Extraer IP de RemoteAddr siempre; es la fuente confiable.
+	remoteIP := remoteAddrToIP(r.RemoteAddr)
+	if remoteIP == nil {
+		// Sin RemoteAddr parseable, caer a "unknown" para no fallar.
+		return "unknown"
+	}
+
+	// Si no hay proxies confiables configurados, ignorar headers
+	// de proxy y usar siempre RemoteAddr.
+	if trusted == nil || (len(trusted.nets) == 0 && len(trusted.ips) == 0) {
+		return remoteIP.String()
+	}
+
+	// Solo honrar headers si la conexión proviene de un proxy confiable.
+	if !trusted.containsIP(remoteIP) {
+		return remoteIP.String()
+	}
+
 	// 1. Intentar cabecera X-Forwarded-For (Cloudflare, Nginx, ALB, etc.)
 	xForwardedFor := r.Header.Get("X-Forwarded-For")
 	if xForwardedFor != "" {
@@ -85,30 +189,40 @@ func ExtractIP(r *http.Request) string {
 		// Tomamos la primera, que es el cliente original.
 		ips := strings.Split(xForwardedFor, ",")
 		clientIP := strings.TrimSpace(ips[0])
-		if clientIP != "" {
-			return clientIP
+		if parsed := net.ParseIP(clientIP); parsed != nil {
+			return parsed.String()
 		}
 	}
 
 	// 2. Intentar cabecera X-Real-IP
 	xRealIP := r.Header.Get("X-Real-IP")
 	if xRealIP != "" {
-		return strings.TrimSpace(xRealIP)
+		if parsed := net.ParseIP(strings.TrimSpace(xRealIP)); parsed != nil {
+			return parsed.String()
+		}
 	}
 
 	// 3. Fallback a RemoteAddr
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return ip
+	return remoteIP.String()
 }
 
-// RateLimitMiddleware genera un middleware de rate limiting genérico
-func RateLimitMiddleware(limiter *IPRateLimiter) func(http.Handler) http.Handler {
+// remoteAddrToIP extrae la IP de un string RemoteAddr (formato "ip:port").
+func remoteAddrToIP(remoteAddr string) net.IP {
+	ip, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		// Si no tiene puerto, intentar parsear el string completo como IP.
+		return net.ParseIP(remoteAddr)
+	}
+	return net.ParseIP(ip)
+}
+
+// RateLimitMiddleware genera un middleware de rate limiting genérico.
+// Usa la lista de proxies confiables para decidir si honrar los headers
+// de X-Forwarded-For / X-Real-IP.
+func RateLimitMiddleware(limiter *IPRateLimiter, trusted *trustedProxies) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := ExtractIP(r)
+			ip := ExtractIP(r, trusted)
 			l := limiter.getLimiter(ip)
 
 			if !l.Allow() {
@@ -126,17 +240,19 @@ func RateLimitMiddleware(limiter *IPRateLimiter) func(http.Handler) http.Handler
 	}
 }
 
-// NewLoginRateLimiter crea un middleware que limita el login a 5 intentos por minuto por IP
-func NewLoginRateLimiter(ctx context.Context) func(http.Handler) http.Handler {
+// NewLoginRateLimiter crea un middleware que limita el login a 5 intentos por minuto por IP.
+// Usa la lista de proxies confiables pasada para que ExtractIP decida
+// correctamente si honrar los headers de proxy.
+func NewLoginRateLimiter(ctx context.Context, trusted *trustedProxies) func(http.Handler) http.Handler {
 	// 5 peticiones por minuto = 5 / 60 = 0.083 req/seg
 	limit := rate.Every(time.Minute / 5)
 	limiter := NewIPRateLimiter(ctx, limit, 5)
-	return RateLimitMiddleware(limiter)
+	return RateLimitMiddleware(limiter, trusted)
 }
 
-// NewDemoRateLimiter crea un middleware que limita la creación de demos a 1 petición por hora por IP
-func NewDemoRateLimiter(ctx context.Context) func(http.Handler) http.Handler {
+// NewDemoRateLimiter crea un middleware que limita la creación de demos a 1 petición por hora por IP.
+func NewDemoRateLimiter(ctx context.Context, trusted *trustedProxies) func(http.Handler) http.Handler {
 	limit := rate.Every(1 * time.Hour)
 	limiter := NewIPRateLimiter(ctx, limit, 1)
-	return RateLimitMiddleware(limiter)
+	return RateLimitMiddleware(limiter, trusted)
 }
