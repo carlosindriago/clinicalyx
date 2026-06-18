@@ -212,7 +212,7 @@ export function Sidebar() {
     : "Recepcionista";
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col overflow-hidden bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] md:flex">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[14.25rem] flex-col overflow-hidden bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] md:flex">
       <div className="rounded-br-[24px] border-b border-white/10 pb-5 pl-2 pr-3 pt-2">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d4f8f8,#83ece7)] text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),8px_10px_20px_rgba(5,38,65,0.25)]">
@@ -231,7 +231,7 @@ export function Sidebar() {
 
       <nav
         aria-label="Authenticated navigation"
-        className="flex-1 space-y-2.5 overflow-visible px-1 py-6"
+        className="flex-1 space-y-2.5 overflow-visible px-0.5 py-6"
       >
         {navigationItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
@@ -243,9 +243,9 @@ export function Sidebar() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "group relative z-10 flex min-h-11 items-center gap-3 overflow-visible rounded-[18px] px-4 text-[0.96rem] font-medium text-white/88 transition-[background-color,box-shadow,color,transform] duration-300 ease-out hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                "group relative z-10 flex min-h-11 items-center gap-3 overflow-visible rounded-[18px] px-4 text-[0.92rem] font-medium text-white/88 transition-[background-color,box-shadow,color,transform] duration-300 ease-out hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                 isActive &&
-                  "rounded-[18px_999px_999px_18px] bg-[linear-gradient(145deg,#ffffff_0%,#eefdfc_58%,#d8fbfa_100%)] pr-6 text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),10px_14px_24px_rgba(4,18,34,0.16)] after:pointer-events-none after:absolute after:-right-5 after:top-1/2 after:h-[calc(100%-8px)] after:w-7 after:-translate-y-1/2 after:rounded-r-[999px] after:bg-[linear-gradient(180deg,#f4ffff_0%,#d8fbfa_100%)] after:shadow-[10px_0_18px_rgba(141,202,210,0.18)] before:pointer-events-none before:absolute before:-right-2 before:top-1/2 before:h-[calc(100%-16px)] before:w-4 before:-translate-y-1/2 before:rounded-r-[999px] before:bg-[#d8fbfa]"
+                  "mr-[-0.3rem] rounded-[18px_999px_999px_18px] bg-[linear-gradient(145deg,#ffffff_0%,#f7ffff_46%,#ddfcfb_100%)] pr-6 text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.98),12px_16px_24px_rgba(4,18,34,0.14)] after:pointer-events-none after:absolute after:-right-4 after:top-1/2 after:h-[calc(100%-10px)] after:w-5 after:-translate-y-1/2 after:rounded-r-[999px] after:bg-[linear-gradient(180deg,#f6ffff_0%,#dcfbfa_100%)] after:shadow-[10px_0_16px_rgba(141,202,210,0.16)] before:pointer-events-none before:absolute before:left-4 before:top-1/2 before:h-5 before:w-1.5 before:-translate-y-1/2 before:rounded-full before:bg-[#19b7b0]"
               )}
             >
               <Icon
@@ -262,8 +262,8 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto space-y-2">
-        <details className="group rounded-[20px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm">
-          <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[16px] px-2.5 py-2 outline-none">
+        <details className="group rounded-[18px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[14px] px-2.5 py-2 outline-none">
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
               {demoSandbox ? (
                 <RoleIllustration
@@ -338,7 +338,7 @@ export function Sidebar() {
           </div>
         </details>
 
-        <div className="rounded-[18px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm">
+        <div className="rounded-[16px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm">
           <Button
             type="button"
             variant="ghost"

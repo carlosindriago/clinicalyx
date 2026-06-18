@@ -16,7 +16,7 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-[linear-gradient(180deg,#dff8f7_0%,#ebfbfb_42%,#f7fcfc_100%)] text-foreground dark:bg-[radial-gradient(circle_at_top,#10243c_0%,#081725_55%,#06111c_100%)]">
       <Sidebar />
 
-      <div className="relative min-h-screen overflow-hidden md:pl-[15.5rem]">
+      <div className="relative min-h-screen overflow-hidden md:pl-[14.25rem]">
         <div
           className="pointer-events-none absolute inset-0 opacity-80"
           aria-hidden="true"
