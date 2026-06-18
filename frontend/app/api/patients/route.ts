@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  backendBaseUrl,
+  buildUpstreamHeaders,
+  extractErrorMessage,
+  readJsonSafely,
+} from "@/lib/backend";
 
 type CreatePatientBody = {
   first_name?: unknown;
@@ -12,51 +18,10 @@ type CreatePatientBody = {
   date_of_birth?: unknown;
 };
 
-type BackendErrorResponse = {
-  error?: unknown;
-};
-
 const e164Regex = /^\+[1-9]\d{9,14}$/;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("error" in payload)) {
-    return null;
-  }
-
-  const error = (payload as BackendErrorResponse).error;
-  return typeof error === "string" ? error : null;
-}
-
-function backendBaseUrl(): string {
-  return process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
-}
-
-function buildUpstreamHeaders(request: NextRequest, contentType?: string): Headers {
-  const headers = new Headers();
-  const cookieHeader = request.headers.get("cookie");
-  const tenantHeader = request.headers.get("x-tenant-id");
-
-  if (contentType) {
-    headers.set("Content-Type", contentType);
-  }
-
-  if (cookieHeader) {
-    headers.set("Cookie", cookieHeader);
-  }
-
-  if (tenantHeader) {
-    headers.set("X-Tenant-ID", tenantHeader);
-  }
-
-  return headers;
-}
-
-async function readJsonSafely(response: Response): Promise<unknown> {
-  return response.json().catch(() => ({}));
 }
 
 function buildPatientListUrl(request: NextRequest): URL {

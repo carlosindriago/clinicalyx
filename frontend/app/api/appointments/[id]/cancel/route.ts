@@ -1,38 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-
-type BackendErrorResponse = {
-  error?: unknown;
-};
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("error" in payload)) {
-    return null;
-  }
-
-  const error = (payload as BackendErrorResponse).error;
-  return typeof error === "string" ? error : null;
-}
-
-function isValidUUID(value: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(value);
-}
-
-function buildUpstreamHeaders(request: NextRequest): Headers {
-  const headers = new Headers();
-  const cookieHeader = request.headers.get("cookie");
-  const tenantHeader = request.headers.get("x-tenant-id");
-
-  if (cookieHeader) {
-    headers.set("Cookie", cookieHeader);
-  }
-
-  if (tenantHeader) {
-    headers.set("X-Tenant-ID", tenantHeader);
-  }
-
-  return headers;
-}
+import {
+  backendBaseUrl,
+  buildUpstreamHeaders,
+  extractErrorMessage,
+  isValidUUID,
+} from "@/lib/backend";
 
 export async function PATCH(
   request: NextRequest,
@@ -51,7 +23,7 @@ export async function PATCH(
       );
     }
 
-    const backendUrl = process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
+    const backendUrl = backendBaseUrl();
     const cancelEndpoint = `${backendUrl}/appointments/${id}/cancel`;
 
     const response = await fetch(cancelEndpoint, {

@@ -1,42 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-
-type BackendErrorResponse = {
-  error?: unknown;
-};
-
-function backendBaseUrl(): string {
-  return process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
-}
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isValidUUID(value: string): boolean {
-  return UUID_REGEX.test(value);
-}
-
-function buildUpstreamHeaders(request: NextRequest): Headers {
-  const headers = new Headers();
-  const cookieHeader = request.headers.get("cookie");
-
-  if (cookieHeader) {
-    headers.set("Cookie", cookieHeader);
-  }
-
-  return headers;
-}
-
-async function readJsonSafely(response: Response): Promise<unknown> {
-  return response.json().catch(() => ({}));
-}
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("error" in payload)) {
-    return null;
-  }
-
-  const error = (payload as BackendErrorResponse).error;
-  return typeof error === "string" ? error : null;
-}
+import {
+  backendBaseUrl,
+  buildUpstreamHeaders,
+  extractErrorMessage,
+  isValidUUID,
+  readJsonSafely,
+} from "@/lib/backend";
 
 // POST - Confirmar subida de archivo
 export async function POST(

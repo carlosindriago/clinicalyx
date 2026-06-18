@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { Eye, Plus, Search, ShieldCheck } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -13,6 +13,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import {
+  backendBaseUrl,
+  parseTenantIdFromAccessToken,
+} from "@/lib/backend";
 
 type PatientsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -103,30 +107,8 @@ function extractError(payload: unknown) {
   return typeof payload.error === "string" ? payload.error : "Unable to load patients";
 }
 
-function tenantFromAccessToken(token: string | undefined): string | null {
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) {
-      return null;
-    }
-
-    const payload = JSON.parse(
-      Buffer.from(payloadPart, "base64url").toString("utf-8")
-    );
-
-    return payload && typeof payload.tenant_id === "string" ? payload.tenant_id : null;
-  } catch {
-    return null;
-  }
-}
-
 async function fetchPatients(documentID: string): Promise<PatientsResult> {
   const cookieStore = await cookies();
-  const headerStore = await headers();
   const params = new URLSearchParams({ limit: "25", offset: "0" });
 
   if (documentID) {
@@ -134,7 +116,18 @@ async function fetchPatients(documentID: string): Promise<PatientsResult> {
   }
 
   const token = cookieStore.get("access_token")?.value;
-  const tenantID = headerStore.get("x-tenant-id") ?? tenantFromAccessToken(token);
+
+  // Derivar el tenant SOLO del JWT firmado (parseTenantIdFromAccessToken
+  // decodifica pero no verifica firma — la verificación la hace el backend
+  // en su middleware de auth). Se IGNORA completamente el header
+  // X-Tenant-ID enviado por el cliente: aceptar ese header sería un
+  // bypass de multi-tenancy (usuario de tenant A podría operar sobre
+  // tenant B). El backend es la única fuente de verdad.
+  //
+  // El tenantID derivado aquí se usa únicamente para mostrar mensajes
+  // de error útiles y construir la URL. La autorización efectiva la
+  // hace el backend al validar el JWT.
+  const tenantID = parseTenantIdFromAccessToken(token);
 
   if (!tenantID) {
     return {
@@ -143,12 +136,17 @@ async function fetchPatients(documentID: string): Promise<PatientsResult> {
     };
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8080/api/v1";
+  const backendUrl = backendBaseUrl();
 
   try {
+    // Construir la URL con el tenantID SOLO como path/query para mantener
+    // la trazabilidad. NO se envía X-Tenant-ID al backend.
     const response = await fetch(`${backendUrl}/patients?${params.toString()}`, {
+      method: "GET",
       headers: {
-        "X-Tenant-ID": tenantID,
+        // Cookie de sesión: Next.js Server Components ya reenvían las
+        // cookies entrantes al hacer fetch desde el server, pero las
+        // hacemos explícitas para dejar clara la intención.
         ...(token ? { Cookie: `access_token=${token}` } : {}),
       },
       cache: "no-store",

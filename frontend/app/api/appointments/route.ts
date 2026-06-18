@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  backendBaseUrl,
+  buildUpstreamHeaders,
+  extractErrorMessage,
+  isValidUUID,
+} from "@/lib/backend";
 
 type ScheduleAppointmentBody = {
   patient_id?: unknown;
@@ -7,46 +13,8 @@ type ScheduleAppointmentBody = {
   end_time?: unknown;
 };
 
-type BackendErrorResponse = {
-  error?: unknown;
-};
-
 function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function isValidUUID(value: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(value);
-}
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("error" in payload)) {
-    return null;
-  }
-
-  const error = (payload as BackendErrorResponse).error;
-  return typeof error === "string" ? error : null;
-}
-
-function buildUpstreamHeaders(request: NextRequest, contentType?: string): Headers {
-  const headers = new Headers();
-  const cookieHeader = request.headers.get("cookie");
-  const tenantHeader = request.headers.get("x-tenant-id");
-
-  if (contentType) {
-    headers.set("Content-Type", contentType);
-  }
-
-  if (cookieHeader) {
-    headers.set("Cookie", cookieHeader);
-  }
-
-  if (tenantHeader) {
-    headers.set("X-Tenant-ID", tenantHeader);
-  }
-
-  return headers;
 }
 
 function isDoctorUnavailable(message: string): boolean {
@@ -90,7 +58,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const backendUrl = process.env.BACKEND_API_URL ?? "http://clinicalyx_api:8080/api/v1";
+    const backendUrl = backendBaseUrl();
     const appointmentEndpoint = `${backendUrl}/patients/${patientID}/appointments`;
 
     const response = await fetch(appointmentEndpoint, {

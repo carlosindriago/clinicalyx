@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { backendBaseUrl } from "@/lib/backend";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    // Para /auth/login el tenant puede venir del body (form-driven) o
+    // de un header del cliente que aún no está autenticado. Se valida
+    // contra el backend como una entrada de autenticación, NO como
+    // decisión de autorización. El backend exige SETUP_TOKEN para
+    // provisionar el primer admin, y la firma del JWT para sesiones
+    // posteriores.
     const tenantID =
       request.headers.get("x-tenant-id") ||
       (typeof body?.tenant_id === "string" ? body.tenant_id.trim() : "");
@@ -23,10 +30,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolver la URL de backend. Si estamos dentro de Docker, BACKEND_API_URL resuelve a host.docker.internal
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
+    // Resolver la URL de backend SOLO desde variable de entorno.
+    const backendUrl = backendBaseUrl();
     const loginEndpoint = `${backendUrl}/auth/login`;
 
+    // Enviamos X-Tenant-ID SOLO en login (form-driven, usuario no
+    // autenticado todavía). El backend lo valida contra el cuerpo del
+    // request firmado. Para cualquier endpoint post-auth, el backend
+    // extrae el tenant del JWT.
     const response = await fetch(loginEndpoint, {
       method: "POST",
       headers: {
