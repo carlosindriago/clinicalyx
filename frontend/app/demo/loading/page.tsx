@@ -38,8 +38,9 @@ interface DemoResponse {
   status: string;
   message: string;
   tenant_id: string;
-  access_token: string;
-  refresh_token: string;
+  // Los tokens de sesión (access_token, refresh_token) llegan
+  // exclusivamente como cookies HttpOnly. NO se exponen en el body JSON
+  // para evitar robo vía XSS. Por eso no aparecen en este tipo.
   credentials: DemoCredentials;
 }
 
