@@ -40,6 +40,13 @@ coverage.out
 coverage.html
 vendor/
 **/vendor/
+# Binarios compilados del backend (build outputs sin extensión).
+# El proyecto no usa convención *.exe porque target es Linux/Mac;
+# sin esta regla el binario 'backend/api' quedaba trackeado.
+backend/api
+api
+**/backend/api
+**/api
 
 # Tooling caches
 .cache/
