@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  BarChart3,
   CalendarDays,
+  ClipboardList,
   ChevronDown,
   FileText,
   HeartPulse,
@@ -12,41 +14,15 @@ import {
   Loader2,
   LogOut,
   Settings,
+  UserPlus,
   UsersRound,
   X,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { RoleIllustration } from "@/components/role-illustration";
 import { cn } from "@/lib/utils";
-
-const navigationItems = [
-  {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Citas",
-    href: "/dashboard/appointments",
-    icon: CalendarDays,
-  },
-  {
-    label: "Pacientes",
-    href: "/dashboard/patients",
-    icon: UsersRound,
-  },
-  {
-    label: "Registros Clínicos",
-    href: "/dashboard/clinical-records",
-    icon: FileText,
-  },
-  {
-    label: "Configuración",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
-] as const;
 
 type DemoCredentials = {
   admin_email: string;
@@ -75,6 +51,65 @@ const ROLE_LABELS: Record<DemoRole, string> = {
 type SidebarProps = {
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
+};
+
+type NavigationItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+type QuickLinkItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+const NAVIGATION_BY_ROLE: Record<DemoRole, NavigationItem[]> = {
+  doctor: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Citas", href: "/dashboard/appointments", icon: CalendarDays },
+    { label: "Pacientes", href: "/dashboard/patients", icon: UsersRound },
+    {
+      label: "Registros Clinicos",
+      href: "/dashboard/clinical-records",
+      icon: FileText,
+    },
+    { label: "Configuracion", href: "/dashboard/settings", icon: Settings },
+  ],
+  receptionist: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Agenda", href: "/dashboard/appointments", icon: CalendarDays },
+    { label: "Pacientes", href: "/dashboard/patients", icon: UsersRound },
+    {
+      label: "Nuevo Paciente",
+      href: "/dashboard/patients/new",
+      icon: UserPlus,
+    },
+    { label: "Configuracion", href: "/dashboard/settings", icon: Settings },
+  ],
+  admin: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Operaciones", href: "/dashboard/appointments", icon: ClipboardList },
+    { label: "Pacientes", href: "/dashboard/patients", icon: UsersRound },
+    { label: "Reportes", href: "/dashboard/patients/new", icon: BarChart3 },
+    { label: "Configuracion", href: "/dashboard/settings", icon: Settings },
+  ],
+};
+
+const QUICK_LINKS_BY_ROLE: Record<DemoRole, QuickLinkItem[]> = {
+  doctor: [
+    { label: "Ver agenda", href: "/dashboard/appointments", icon: CalendarDays },
+    { label: "Abrir pacientes", href: "/dashboard/patients", icon: UsersRound },
+  ],
+  receptionist: [
+    { label: "Registrar paciente", href: "/dashboard/patients/new", icon: UserPlus },
+    { label: "Revisar agenda", href: "/dashboard/appointments", icon: CalendarDays },
+  ],
+  admin: [
+    { label: "Vista operativa", href: "/dashboard/appointments", icon: ClipboardList },
+    { label: "KPI clinicos", href: "/dashboard", icon: BarChart3 },
+  ],
 };
 
 function isActivePath(pathname: string, href: string) {
@@ -228,6 +263,10 @@ export function Sidebar({
     onMobileClose?.();
   };
 
+  const activeRole = demoSandbox?.currentRole ?? "doctor";
+  const navigationItems = NAVIGATION_BY_ROLE[activeRole];
+  const quickLinks = QUICK_LINKS_BY_ROLE[activeRole];
+
   const sidebarContent = (
     <>
       <div className="rounded-br-[24px] border-b border-white/10 pb-5 pl-2 pr-3 pt-2">
@@ -287,6 +326,29 @@ export function Sidebar({
             </Link>
           );
         })}
+
+        <div className="mt-5 rounded-[18px] border border-white/10 bg-white/6 p-3 shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_22px_rgba(4,18,34,0.12)]">
+          <p className="px-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/46">
+            Accesos rapidos
+          </p>
+          <div className="mt-3 space-y-2">
+            {quickLinks.map((link) => {
+              const Icon = link.icon;
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={closeMobileMenu}
+                  className="flex min-h-11 items-center gap-3 rounded-[14px] border border-white/8 bg-white/7 px-3 py-2.5 text-sm font-medium text-white/82 transition-colors hover:bg-white/12 hover:text-white"
+                >
+                  <Icon className="size-4 text-[#7ae6e0]" aria-hidden="true" />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </nav>
 
       <div className="mt-auto space-y-2">

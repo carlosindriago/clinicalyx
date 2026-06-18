@@ -1,7 +1,18 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { Bell, Menu, Search } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  BarChart3,
+  Bell,
+  CalendarDays,
+  ClipboardList,
+  Menu,
+  Search,
+  UserPlus,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Sidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -9,12 +20,84 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GlobalSearch } from "@/components/global-search";
 
+type DemoRole = "doctor" | "receptionist" | "admin";
+
+type DemoSandboxState = {
+  currentRole?: DemoRole;
+};
+
+type QuickAction = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
+
+const ROLE_SHELL_LABELS: Record<DemoRole, string> = {
+  doctor: "Vista Clinica",
+  receptionist: "Vista Recepcion",
+  admin: "Vista Ejecutiva",
+};
+
+const HEADER_ACTIONS_BY_ROLE: Record<DemoRole, QuickAction[]> = {
+  doctor: [
+    { label: "Agenda de hoy", href: "/dashboard/appointments", icon: CalendarDays },
+    { label: "Pacientes", href: "/dashboard/patients", icon: UsersRound },
+  ],
+  receptionist: [
+    { label: "Nuevo paciente", href: "/dashboard/patients/new", icon: UserPlus },
+    { label: "Turno actual", href: "/dashboard/appointments", icon: ClipboardList },
+  ],
+  admin: [
+    { label: "Operacion", href: "/dashboard/appointments", icon: ClipboardList },
+    { label: "Metricas", href: "/dashboard", icon: BarChart3 },
+  ],
+};
+
+function isDemoRole(value: unknown): value is DemoRole {
+  return value === "doctor" || value === "receptionist" || value === "admin";
+}
+
 export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [currentRole, setCurrentRole] = useState<DemoRole>("doctor");
+
+  useEffect(() => {
+    const syncRoleFromStorage = () => {
+      try {
+        const storedSandbox = window.localStorage.getItem(DEMO_STORAGE_KEY);
+
+        if (!storedSandbox) {
+          setCurrentRole("doctor");
+          return;
+        }
+
+        const parsedSandbox = JSON.parse(storedSandbox) as DemoSandboxState;
+
+        if (isDemoRole(parsedSandbox.currentRole)) {
+          setCurrentRole(parsedSandbox.currentRole);
+        }
+      } catch {
+        setCurrentRole("doctor");
+      }
+    };
+
+    syncRoleFromStorage();
+    window.addEventListener("storage", syncRoleFromStorage);
+    window.addEventListener("focus", syncRoleFromStorage);
+
+    return () => {
+      window.removeEventListener("storage", syncRoleFromStorage);
+      window.removeEventListener("focus", syncRoleFromStorage);
+    };
+  }, []);
+
+  const quickActions = HEADER_ACTIONS_BY_ROLE[currentRole];
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#dff8f7_0%,#ebfbfb_42%,#f7fcfc_100%)] text-foreground dark:bg-[radial-gradient(circle_at_top,#10243c_0%,#081725_55%,#06111c_100%)]">
@@ -87,6 +170,36 @@ export default function DashboardLayout({
               </div>
             </div>
           </header>
+
+          <div className="px-4 pt-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-3 rounded-[26px] border border-white/55 bg-white/50 px-4 py-4 shadow-[inset_1px_1px_0_rgba(255,255,255,0.92),12px_14px_28px_rgba(122,176,190,0.16)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-950/34 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),12px_14px_28px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex rounded-full border border-white/60 bg-white/72 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),6px_6px_16px_rgba(130,188,198,0.14)] dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-300">
+                  {ROLE_SHELL_LABELS[currentRole]}
+                </span>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Acciones rapidas para el flujo actual
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+
+                  return (
+                    <Link
+                      key={action.href}
+                      href={action.href}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-[18px] border border-white/60 bg-white/72 px-4 py-2 text-sm font-medium text-slate-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_18px_rgba(130,188,198,0.14)] transition-colors hover:bg-white/88 hover:text-teal-700 dark:border-white/8 dark:bg-slate-900/58 dark:text-slate-200 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.16)] dark:hover:bg-slate-900/78 dark:hover:text-teal-300"
+                    >
+                      <Icon className="size-4 text-teal-600 dark:text-teal-300" aria-hidden="true" />
+                      <span>{action.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
           <main className="px-4 pb-8 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
             <div className="mx-auto w-full max-w-7xl">{children}</div>
