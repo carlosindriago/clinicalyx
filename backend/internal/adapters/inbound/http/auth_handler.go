@@ -45,6 +45,7 @@ type AuthHandler struct {
 	jwtService         *crypto.JWTService
 	authMiddleware     *AuthMiddleware
 	loginRateLimiter   func(http.Handler) http.Handler
+	setupTokenMW       func(http.Handler) http.Handler
 }
 
 // NewAuthHandler construye una instancia de AuthHandler.
@@ -67,15 +68,36 @@ func NewAuthHandler(
 		jwtService:         jwtService,
 		authMiddleware:     authMiddleware,
 		loginRateLimiter:   NewLoginRateLimiter(ctx),
+		// setupTokenMW se asigna vía SetSetupTokenMiddleware desde main.go
+		// una vez que la configuración está disponible.
+		setupTokenMW: func(next http.Handler) http.Handler {
+			// Por defecto, rechaza siempre que no se haya configurado un token.
+			// Esto previene que el endpoint quede accidentalmente abierto si
+			// el operador olvida inyectar SETUP_TOKEN.
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": "Endpoint deshabilitado: el bootstrap de tenant no está configurado",
+				})
+			})
+		},
 	}
+}
+
+// setupTokenMiddleware valida el token de un solo uso enviado en el header
+// X-Setup-Token contra el valor configurado en el arranque. Se define en
+// el commit de hardening de SetupTenant.
+func (h *AuthHandler) setupTokenMiddleware() func(http.Handler) http.Handler {
+	return h.setupTokenMW
 }
 
 // RegisterRoutes registra los endpoints de autenticación en Chi.
 func (h *AuthHandler) RegisterRoutes(r chi.Router) {
-	r.With(TenantExtractor).Post("/api/v1/auth/setup", h.SetupTenant)
+	r.With(TenantExtractor, h.setupTokenMiddleware()).Post("/api/v1/auth/setup", h.SetupTenant)
 	r.With(TenantExtractor, h.loginRateLimiter).Post("/api/v1/auth/login", h.Login)
 	r.With(TenantExtractor, h.authMiddleware.Handler).Post("/api/v1/auth/logout", h.Logout)
-	r.With(TenantExtractor, h.authMiddleware.Handler).Put("/api/v1/auth/users/{id}/status", h.ToggleStatus)
+	r.With(TenantExtractor, h.authMiddleware.Handler, RequireRole(domain.UserRoleSuperAdmin)).Put("/api/v1/auth/users/{id}/status", h.ToggleStatus)
 }
 
 // SetupTenant maneja la creación del SuperAdmin inicial de un Tenant.

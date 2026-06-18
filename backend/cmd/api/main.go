@@ -15,6 +15,7 @@ import (
 	"clinicalyx/backend/internal/adapters/outbound/postgres"
 	"clinicalyx/backend/internal/adapters/outbound/s3"
 	"clinicalyx/backend/internal/config"
+	"clinicalyx/backend/internal/core/domain"
 	"clinicalyx/backend/internal/core/usecases"
 
 	"github.com/go-chi/chi/v5"
@@ -183,6 +184,13 @@ func main() {
 	// Registrar rutas para archivos médicos dentro del grupo autenticado de pacientes
 	r.Route("/api/v1/patients/{patient_id}/files", func(r chi.Router) {
 		r.Use(authMiddleware.Handler) // Asegurar protección
+		// Solo personal clínico y de gestión accede a archivos médicos.
+		r.Use(inboundHTTP.RequireRole(
+			domain.UserRoleSuperAdmin,
+			domain.UserRoleDoctor,
+			domain.UserRoleNurse,
+			domain.UserRoleReceptionist,
+		))
 		r.Post("/presign", fileHandler.GenerateUploadURL)
 		r.Post("/", fileHandler.ConfirmUpload)
 		r.Get("/", fileHandler.ListFiles)

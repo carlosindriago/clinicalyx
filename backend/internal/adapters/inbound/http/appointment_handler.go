@@ -39,17 +39,27 @@ func NewAppointmentHandler(
 	}
 }
 
+// appointmentRoles define quién puede operar sobre la agenda médica:
+// el médico que atiende, recepción que coordina, y superadmin.
+var appointmentRoles = []domain.UserRole{
+	domain.UserRoleSuperAdmin,
+	domain.UserRoleDoctor,
+	domain.UserRoleReceptionist,
+}
+
 // RegisterRoutes registra los endpoints en el enrutador Chi.
 func (h *AppointmentHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1/patients/{patient_id}/appointments", func(r chi.Router) {
 		r.Use(TenantExtractor)
 		r.Use(h.authMiddleware.Handler)
+		r.Use(RequireRole(appointmentRoles...))
 		r.Post("/", h.ScheduleAppointment)
 	})
 
 	r.Route("/api/v1/appointments/{appointment_id}/cancel", func(r chi.Router) {
 		r.Use(TenantExtractor)
 		r.Use(h.authMiddleware.Handler)
+		r.Use(RequireRole(appointmentRoles...))
 		r.Patch("/", h.CancelAppointment)
 	})
 }

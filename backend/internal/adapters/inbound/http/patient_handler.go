@@ -35,6 +35,16 @@ func NewPatientHandler(
 	}
 }
 
+// clinicalRoles define los roles con acceso al módulo de pacientes.
+// Receptionist puede crear y consultar; Doctor y Nurse ven/gestionan
+// fichas clínicas; SuperAdmin tiene acceso completo.
+var clinicalRoles = []domain.UserRole{
+	domain.UserRoleSuperAdmin,
+	domain.UserRoleDoctor,
+	domain.UserRoleNurse,
+	domain.UserRoleReceptionist,
+}
+
 // RegisterRoutes registra las rutas de pacientes en el router de Chi.
 // NOTA: Este handler debe ser instanciado por un componente superior que tenga
 // acceso al AuthMiddleware para aplicar protección a estas rutas.
@@ -44,6 +54,8 @@ func (h *PatientHandler) RegisterRoutes(r chi.Router, authMiddleware func(http.H
 		if authMiddleware != nil {
 			r.Use(authMiddleware) // Protección de autenticación CRÍTICA
 		}
+		// Defensa perimetral: solo roles clínicos acceden al módulo de pacientes.
+		r.Use(RequireRole(clinicalRoles...))
 		r.Post("/", h.CreatePatient)
 		r.Get("/", h.GetPatients)
 		r.Get("/{patient_id}", h.GetPatientByID)

@@ -53,6 +53,20 @@ func (m *MockPatientRepository) FindByDocument(ctx context.Context, tenantID dom
 	return nil, nil
 }
 
+// authenticatedMiddleware simula un usuario autenticado con el rol indicado
+// y un UserID aleatorio. Se usa en los tests de los handlers clínicos
+// para que el middleware RequireRole tenga un rol en el contexto y los
+// handlers que requieren UserID también lo tengan disponible.
+func authenticatedMiddleware(role domain.UserRole) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := withRole(r.Context(), role)
+			ctx = withUserID(ctx, domain.NewUserID())
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 func TestPatientHandler_CreatePatient(t *testing.T) {
 	tenantID := uuid.New().String()
 
@@ -63,13 +77,10 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -107,13 +118,10 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -141,13 +149,10 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -176,13 +181,10 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -219,13 +221,10 @@ func TestPatientHandler_CreatePatient(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		body := map[string]string{
 			"name":           "Carlos Pérez",
@@ -265,13 +264,10 @@ func TestPatientHandler_GetPatients(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients?document_id=12345678", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -304,13 +300,10 @@ func TestPatientHandler_GetPatients(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients?document_id=99999999", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -347,13 +340,10 @@ func TestPatientHandler_GetPatientByID(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients/"+existingP.ID().String(), nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -382,13 +372,10 @@ func TestPatientHandler_GetPatientByID(t *testing.T) {
 		handler := NewPatientHandler(createUC, getUC)
 
 		r := chi.NewRouter()
-		// Middleware dummy para tests que no aplica autenticación real
-		dummyAuthMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
-		handler.RegisterRoutes(r, dummyAuthMiddleware)
+		// Autenticación simulada: inyecta un rol clínico válido en el contexto
+		// para que RequireRole (capa perimetral) permita el paso.
+		authMW := authenticatedMiddleware(domain.UserRoleReceptionist)
+		handler.RegisterRoutes(r, authMW)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/patients/"+uuid.New().String(), nil)
 		req.Header.Set("X-Tenant-ID", tenantID)

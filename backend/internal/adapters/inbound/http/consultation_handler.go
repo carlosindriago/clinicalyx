@@ -21,9 +21,14 @@ type RecordConsultationRequest struct {
 
 // ConsultationHandler expone los endpoints HTTP para la gestión de historias clínicas y consultas.
 type ConsultationHandler struct {
-	recordConsultationUC      *usecases.RecordConsultationUseCase
-	getConsultationHistoryUC  *usecases.GetConsultationHistoryUseCase
-	authMiddleware            *AuthMiddleware
+	recordConsultationUC     *usecases.RecordConsultationUseCase
+	getConsultationHistoryUC *usecases.GetConsultationHistoryUseCase
+	authMiddleware           *AuthMiddleware
+
+	// testAuthMW permite a los tests inyectar un middleware de auth arbitrario
+	// (típicamente authenticatedMiddleware) sin necesidad de un JWTService real.
+	// En producción siempre es nil; el código usa h.authMiddleware.Handler.
+	testAuthMW func(http.Handler) http.Handler
 }
 
 // NewConsultationHandler construye una instancia de ConsultationHandler.
@@ -44,8 +49,12 @@ func (h *ConsultationHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1/patients/{patient_id}/consultations", func(r chi.Router) {
 		r.Use(TenantExtractor)
 		r.Use(h.authMiddleware.Handler)
-		r.Post("/", h.RecordConsultation)
-		r.Get("/", h.GetConsultationHistory)
+		// Solo médicos pueden REGISTRAR consultas. La lectura del historial
+		// es compartida entre personal clínico y recepción.
+		recordHandler := RequireRole(domain.UserRoleDoctor, domain.UserRoleSuperAdmin)(http.HandlerFunc(h.RecordConsultation))
+		historyHandler := RequireRole(domain.UserRoleDoctor, domain.UserRoleNurse, domain.UserRoleReceptionist, domain.UserRoleSuperAdmin)(http.HandlerFunc(h.GetConsultationHistory))
+		r.Post("/", recordHandler.ServeHTTP)
+		r.Get("/", historyHandler.ServeHTTP)
 	})
 }
 

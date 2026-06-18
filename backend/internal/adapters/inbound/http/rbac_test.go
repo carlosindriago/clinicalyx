@@ -15,6 +15,13 @@ func withRole(parent context.Context, role domain.UserRole) context.Context {
 	return context.WithValue(parent, UserRoleKey, role)
 }
 
+// withUserID inyecta el UserIDKey en el contexto, simulando la identidad
+// del usuario autenticado. Se usa combinado con withRole para emular
+// completamente el estado que produce AuthMiddleware.
+func withUserID(parent context.Context, id domain.UserID) context.Context {
+	return context.WithValue(parent, UserIDKey, id)
+}
+
 func TestRequireRole(t *testing.T) {
 	t.Run("Rechaza con 401 si no hay rol en el contexto", func(t *testing.T) {
 		mw := RequireRole(domain.UserRoleDoctor)
