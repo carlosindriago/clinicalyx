@@ -13,6 +13,7 @@ import {
   LogOut,
   Settings,
   UsersRound,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,11 @@ const ROLE_LABELS: Record<DemoRole, string> = {
   receptionist: "Recepcionista",
 };
 
+type SidebarProps = {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+};
+
 function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") {
     return pathname === href;
@@ -79,7 +85,10 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar() {
+export function Sidebar({
+  isMobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [demoSandbox, setDemoSandbox] = useState<DemoSandboxState | null>(null);
@@ -139,6 +148,7 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    closeMobileMenu();
 
     try {
       await fetch("/api/auth/logout", {
@@ -163,6 +173,7 @@ export function Sidebar() {
     }
 
     if (demoSandbox.currentRole === role) {
+      closeMobileMenu();
       router.push("/dashboard");
       router.refresh();
       return;
@@ -197,9 +208,11 @@ export function Sidebar() {
       }
 
       persistCurrentRole(role);
+      closeMobileMenu();
       router.push("/dashboard");
       router.refresh();
     } catch {
+      closeMobileMenu();
       router.push("/login");
       router.refresh();
     } finally {
@@ -211,22 +224,36 @@ export function Sidebar() {
     ? ROLE_LABELS[demoSandbox.currentRole]
     : "Recepcionista";
 
-  return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[14.25rem] flex-col overflow-hidden bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] md:flex">
+  const closeMobileMenu = () => {
+    onMobileClose?.();
+  };
+
+  const sidebarContent = (
+    <>
       <div className="rounded-br-[24px] border-b border-white/10 pb-5 pl-2 pr-3 pt-2">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d4f8f8,#83ece7)] text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),8px_10px_20px_rgba(5,38,65,0.25)]">
-          <HeartPulse className="size-6" aria-hidden="true" />
+            <HeartPulse className="size-6" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-[1.15rem] font-bold tracking-tight text-white">
+              Clinicalyx
+            </p>
+            <p className="text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-white/72">
+              Medical Suite
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Cerrar menu de navegacion"
+            onClick={closeMobileMenu}
+            className="ml-auto flex size-10 rounded-xl border border-white/10 bg-white/8 text-white hover:bg-white/12 md:hidden"
+          >
+            <X className="size-4.5" aria-hidden="true" />
+          </Button>
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-[1.15rem] font-bold tracking-tight text-white">
-            Clinicalyx
-          </p>
-          <p className="text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-white/72">
-            Medical Suite
-          </p>
-        </div>
-      </div>
       </div>
 
       <nav
@@ -242,6 +269,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               aria-current={isActive ? "page" : undefined}
+              onClick={closeMobileMenu}
               className={cn(
                 "group flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-[0.92rem] font-medium text-slate-300 transition-colors duration-200 ease-out hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                 isActive &&
@@ -354,6 +382,28 @@ export function Sidebar() {
           </Button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {isMobileOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden" aria-hidden={!isMobileOpen}>
+          <button
+            type="button"
+            aria-label="Cerrar menu de navegacion"
+            className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
+            onClick={closeMobileMenu}
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[86vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-2xl">
+            {sidebarContent}
+          </aside>
+        </div>
+      ) : null}
+
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[14.25rem] flex-col overflow-hidden bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] md:flex">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }
