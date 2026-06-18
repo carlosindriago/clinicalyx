@@ -236,7 +236,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="overflow-hidden rounded-[34px] border border-white/60 bg-white/62 text-slate-900 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),18px_20px_40px_rgba(123,185,197,0.2),-12px_-12px_28px_rgba(255,255,255,0.75)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-950/45 dark:text-slate-100 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),18px_20px_38px_rgba(0,0,0,0.28)]">
-        <div className="flex items-center justify-between border-b border-white/50 px-6 py-5 dark:border-white/8">
+        <div className="flex items-center justify-between border-b border-white/50 px-4 py-4 dark:border-white/8">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#f8ffff,#d5f8f5)] text-teal-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_18px_rgba(130,188,198,0.14)] dark:bg-slate-900/80 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)]">
               <TrendingUp className="size-5" aria-hidden="true" />
@@ -255,13 +255,12 @@ export default function DashboardPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-sm">
+          <table className="w-full min-w-[520px] text-left text-sm">
             <thead className="bg-white/55 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:bg-slate-900/30 dark:text-slate-400">
               <tr>
-                <th className="px-6 py-4 font-medium">Hora</th>
-                <th className="px-6 py-4 font-medium">Nombre del Paciente</th>
-                <th className="px-6 py-4 font-medium">Doctor</th>
-                <th className="px-6 py-4 font-medium">Estado</th>
+                <th className="px-4 py-3 font-medium">Cita</th>
+                <th className="px-4 py-3 font-medium">Doctor</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -271,18 +270,32 @@ export default function DashboardPage() {
                 return (
                   <tr
                     key={`${appointment.time}-${appointment.patient}`}
-                    className="border-t border-white/45 transition-colors duration-150 hover:bg-white/35 dark:border-white/8 dark:hover:bg-slate-900/24"
+                    className="border-t border-white/45 transition-colors duration-150 hover:bg-slate-50/70 cursor-pointer dark:border-white/8 dark:hover:bg-slate-900/24"
                   >
-                    <td className="px-6 py-5 text-sm font-semibold text-teal-600 dark:text-teal-300">
-                      {appointment.time}
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                          {appointment.time}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {appointment.patient}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-5 font-medium text-teal-700 dark:text-teal-200">
-                      {appointment.patient}
+                    <td className="px-4 py-4">
+                      <div className="flex items-center">
+                        <div className="mr-2 flex size-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {appointment.doctor
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </div>
+                        <span className="text-slate-600 dark:text-slate-300">
+                          {appointment.doctor}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-5 text-slate-500 dark:text-slate-400">
-                      {appointment.doctor}
-                    </td>
-                    <td className="px-6 py-5">
+                    <td className="px-4 py-4">
                       <span
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider",
