@@ -212,24 +212,26 @@ export function Sidebar() {
     : "Recepcionista";
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[18rem] flex-col bg-[linear-gradient(180deg,#123b66_0%,#0d2f53_52%,#092540_100%)] px-4 py-5 text-white shadow-[18px_0_40px_rgba(8,24,44,0.28)] md:flex">
-      <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),inset_-10px_-10px_24px_rgba(4,18,34,0.18),10px_12px_30px_rgba(4,18,34,0.22)] backdrop-blur-sm">
-        <div className="flex size-12 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d4f8f8,#83ece7)] text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),8px_10px_20px_rgba(5,38,65,0.25)]">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col overflow-hidden bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] md:flex">
+      <div className="rounded-br-[24px] border-b border-white/10 pb-5 pl-2 pr-3 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d4f8f8,#83ece7)] text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),8px_10px_20px_rgba(5,38,65,0.25)]">
           <HeartPulse className="size-6" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-lg font-bold tracking-tight text-white">
+          <p className="truncate text-[1.15rem] font-bold tracking-tight text-white">
             Clinicalyx
           </p>
-          <p className="text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-white/70">
+          <p className="text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-white/72">
             Medical Suite
           </p>
         </div>
       </div>
+      </div>
 
       <nav
         aria-label="Authenticated navigation"
-        className="flex-1 space-y-3 overflow-visible px-1 py-8"
+        className="flex-1 space-y-2.5 overflow-visible px-1 py-6"
       >
         {navigationItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
@@ -241,15 +243,15 @@ export function Sidebar() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "group relative z-10 flex min-h-12 items-center gap-3 overflow-visible rounded-[22px] px-4 text-sm font-medium text-white/78 transition-[background-color,box-shadow,color,transform] duration-300 ease-out hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                "group relative z-10 flex min-h-11 items-center gap-3 overflow-visible rounded-[18px] px-4 text-[0.96rem] font-medium text-white/88 transition-[background-color,box-shadow,color,transform] duration-300 ease-out hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                 isActive &&
-                  "rounded-[24px_0_0_24px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] pr-6 text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),12px_14px_28px_rgba(4,18,34,0.24)] after:pointer-events-none after:absolute after:-right-7 after:top-1/2 after:h-[calc(100%+10px)] after:w-10 after:-translate-y-1/2 after:rounded-[0_26px_26px_0] after:bg-[linear-gradient(180deg,#dff8f7_0%,#ebfbfb_50%,#f7fcfc_100%)] after:shadow-[18px_0_28px_rgba(141,202,210,0.22)] before:pointer-events-none before:absolute before:-right-2 before:top-1/2 before:h-[calc(100%-10px)] before:w-8 before:-translate-y-1/2 before:rounded-r-[22px] before:bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] before:shadow-[8px_0_18px_rgba(151,242,236,0.18)] dark:after:bg-[radial-gradient(circle_at_left,#17324c_0%,#0d2236_55%,#081725_100%)] dark:after:shadow-[18px_0_30px_rgba(0,0,0,0.24)]"
+                  "rounded-[18px_999px_999px_18px] bg-[linear-gradient(145deg,#ffffff_0%,#eefdfc_58%,#d8fbfa_100%)] pr-6 text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),10px_14px_24px_rgba(4,18,34,0.16)] after:pointer-events-none after:absolute after:-right-5 after:top-1/2 after:h-[calc(100%-8px)] after:w-7 after:-translate-y-1/2 after:rounded-r-[999px] after:bg-[linear-gradient(180deg,#f4ffff_0%,#d8fbfa_100%)] after:shadow-[10px_0_18px_rgba(141,202,210,0.18)] before:pointer-events-none before:absolute before:-right-2 before:top-1/2 before:h-[calc(100%-16px)] before:w-4 before:-translate-y-1/2 before:rounded-r-[999px] before:bg-[#d8fbfa]"
               )}
             >
               <Icon
                 className={cn(
-                  "size-4 transition-colors group-hover:text-white",
-                  isActive ? "text-[#0f766e]" : "text-white"
+                  "size-4.5 transition-colors group-hover:text-white",
+                  isActive ? "text-[#19b7b0]" : "text-white/92"
                 )}
                 aria-hidden="true"
               />
@@ -259,22 +261,23 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto space-y-3">
-        <details className="group rounded-[28px] border border-white/10 bg-white/8 p-3 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),12px_14px_30px_rgba(4,18,34,0.2)] backdrop-blur-sm">
-          <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[22px] px-2 py-1.5 outline-none">
-            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
-              <RoleIllustration
-                role={demoSandbox?.currentRole ?? "receptionist"}
-                compact
-                className="scale-[1.18]"
-              />
+      <div className="mt-auto space-y-2">
+        <details className="group rounded-[20px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[16px] px-2.5 py-2 outline-none">
+            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
+              {demoSandbox ? (
+                <RoleIllustration
+                  role={demoSandbox.currentRole}
+                  compact
+                  className="scale-[1.15]"
+                />
+              ) : (
+                <span className="text-sm font-semibold text-[#0f766e]">R</span>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">
                 {currentRoleLabel}
-              </p>
-              <p className="truncate text-xs text-white/58">
-                Ver cuenta y cambiar rol
               </p>
             </div>
             <ChevronDown
@@ -283,15 +286,24 @@ export function Sidebar() {
             />
           </summary>
 
-          <div className="mt-3 space-y-3 rounded-[22px] bg-[#08213a]/35 p-3">
-            <div className="rounded-[18px] border border-white/8 bg-white/6 px-3 py-2.5">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white/45">
-                Cuenta activa
-              </p>
-              <p className="mt-1 truncate text-sm font-medium text-white/88">
-                {demoSandbox ? emailForRole(demoSandbox.currentRole) : "Sesión activa"}
-              </p>
-            </div>
+          <div className="mt-2 space-y-2 rounded-[16px] bg-[#08213a]/34 p-2.5">
+            {demoSandbox ? (
+              <>
+                <div className="rounded-[14px] border border-white/8 bg-white/6 px-3 py-2">
+                  <p className="truncate text-xs font-medium text-white/82">
+                    {emailForRole(demoSandbox.currentRole)}
+                  </p>
+                </div>
+                <div className="rounded-[14px] border border-white/8 bg-white/6 px-3 py-2">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/46">
+                    Roles
+                  </p>
+                  <p className="mt-1 text-xs text-white/78">
+                    Doctor, Recepcionista, Superadmin
+                  </p>
+                </div>
+              </>
+            ) : null}
 
             {demoSandbox && (
               <div className="space-y-2">
@@ -306,13 +318,13 @@ export function Sidebar() {
                       onClick={() => handleSwitchRole(role)}
                       disabled={switchingRole !== null || isLoggingOut}
                       className={cn(
-                        "h-11 w-full justify-between rounded-[18px] border border-white/8 bg-white/7 px-3 text-sm text-white/82 shadow-none hover:bg-white/12 hover:text-white",
+                        "h-10 w-full justify-between rounded-[14px] border border-white/8 bg-white/7 px-3 text-sm text-white/82 shadow-none hover:bg-white/12 hover:text-white",
                         isCurrentRole &&
                           "bg-[linear-gradient(145deg,rgba(216,251,250,0.98),rgba(151,242,236,0.92))] text-[#0f766e] hover:text-[#0f766e]"
                       )}
                     >
                       <span className="flex items-center gap-2">
-                        <RoleIllustration role={role} compact className="size-8 rounded-full" />
+                        <RoleIllustration role={role} compact className="size-7 rounded-full" />
                         <span>{ROLE_LABELS[role]}</span>
                       </span>
                       {switchingRole === role ? (
@@ -326,13 +338,13 @@ export function Sidebar() {
           </div>
         </details>
 
-        <div className="rounded-[24px] border border-white/10 bg-white/8 p-2 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),12px_14px_30px_rgba(4,18,34,0.2)] backdrop-blur-sm">
+        <div className="rounded-[18px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm">
           <Button
             type="button"
             variant="ghost"
             onClick={handleLogout}
             disabled={switchingRole !== null || isLoggingOut}
-            className="h-11 w-full justify-between rounded-[18px] px-4 text-sm font-medium text-white/82 hover:bg-white/10 hover:text-white"
+            className="h-9 w-full justify-between rounded-[14px] px-3 text-[0.83rem] font-medium text-white/88 hover:bg-white/10 hover:text-white"
           >
             <span className="flex items-center gap-2">
               <LogOut className="size-4" aria-hidden="true" />

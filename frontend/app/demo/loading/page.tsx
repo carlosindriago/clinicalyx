@@ -1,32 +1,32 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
   AlertCircle,
+  ArrowRight,
+  Building,
+  Check,
   CheckCircle2,
   Copy,
-  Check,
-  ArrowRight,
-  ShieldCheck,
-  Building,
   KeyRound,
-  UserCheck,
   Loader2,
+  ShieldCheck,
+  UserCheck,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 import { RoleIllustration } from "@/components/role-illustration";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui/card";
 
-// Tipado estricto para las credenciales devueltas por el proxy api
 interface DemoCredentials {
   admin_email: string;
   doctor_email: string;
@@ -54,49 +54,80 @@ type DemoSandboxState = {
 
 const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
 
-// Mensajes simulados que cambian dinámicamente en la pantalla de carga
+const ROLE_LABELS: Record<DemoRole, string> = {
+  doctor: "Doctor",
+  receptionist: "Recepcionista",
+  admin: "Superadmin",
+};
+
 const LOADING_STEPS = [
-  "Provisioning isolated sandbox tenant...",
-  "Generating cryptographically secure encryption keys...",
-  "Encrypting database fields (AES-256-GCM)...",
-  "Generating HMAC-SHA256 blind indexes for document IDs...",
-  "Seeding mock patients and consultation history...",
-  "Scheduling upcoming appointments for today...",
-  "Applying PostgreSQL Row-Level Security (RLS) policies...",
-  "Issuing ephemeral Doctor session JWT token..."
+  "Provisionando tenant aislado del sandbox...",
+  "Generando llaves criptograficas seguras...",
+  "Cifrando campos sensibles con AES-256-GCM...",
+  "Creando indices ciegos HMAC-SHA256 para documentos...",
+  "Sembrando pacientes y antecedentes clinicos de prueba...",
+  "Programando las proximas citas del dia...",
+  "Aplicando politicas PostgreSQL Row-Level Security...",
+  "Emitiendo sesion efimera inicial para el Doctor...",
 ];
+
+const ROLE_CARD_STYLES: Record<
+  DemoRole,
+  {
+    border: string;
+    badge: string;
+    button: string;
+    hint?: string;
+  }
+> = {
+  doctor: {
+    border: "border-teal-200 bg-teal-50/75",
+    badge: "bg-teal-100 text-teal-700",
+    button:
+      "bg-[linear-gradient(145deg,#25cbc9,#1da2be)] text-white shadow-[0_12px_24px_rgba(29,162,190,0.16)] hover:brightness-105",
+    hint: "Acceso inicial configurado",
+  },
+  receptionist: {
+    border: "border-sky-200 bg-sky-50/70",
+    badge: "bg-sky-100 text-sky-700",
+    button: "border-sky-200 bg-white text-sky-700 hover:bg-sky-50",
+  },
+  admin: {
+    border: "border-violet-200 bg-violet-50/70",
+    badge: "bg-violet-100 text-violet-700",
+    button: "border-violet-200 bg-white text-violet-700 hover:bg-violet-50",
+  },
+};
 
 export default function DemoLoadingPage() {
   const router = useRouter();
-
-  // Guardar estado de llamada única en Strict Mode
   const hasFetched = useRef<boolean>(false);
 
-  // Estados de carga e interacción
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [demoData, setDemoData] = useState<DemoResponse | null>(null);
-
-  // Estado para animar el copiado de credenciales
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [switchingRole, setSwitchingRole] = useState<DemoRole | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Efecto 1: Ciclar textos de carga cada 1200ms
   useEffect(() => {
-    if (!isLoading) return;
+    if (!isLoading) {
+      return;
+    }
 
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       setStepIndex((prev) => (prev + 1) % LOADING_STEPS.length);
     }, 1200);
 
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [isLoading]);
 
-  // Efecto 2: Iniciar entorno demo mediante petición POST
   useEffect(() => {
-    if (hasFetched.current) return;
+    if (hasFetched.current) {
+      return;
+    }
+
     hasFetched.current = true;
 
     const startDemoEnvironment = async () => {
@@ -113,24 +144,23 @@ export default function DemoLoadingPage() {
         if (!response.ok) {
           throw new Error(
             ("error" in data ? data.error : null) ||
-            "Error al inicializar el entorno de demostración temporal."
+              "Error al inicializar el entorno de demostracion temporal."
           );
         }
 
-        // Guardamos los datos de la demo creada
         setDemoData(data as DemoResponse);
         setIsLoading(false);
       } catch (err: unknown) {
         const message =
           err instanceof Error
             ? err.message
-            : "No se pudo establecer conexión con el servidor.";
+            : "No se pudo establecer conexion con el servidor.";
         setError(message);
         setIsLoading(false);
       }
     };
 
-    startDemoEnvironment();
+    void startDemoEnvironment();
   }, []);
 
   useEffect(() => {
@@ -148,11 +178,10 @@ export default function DemoLoadingPage() {
     window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(sandboxState));
   }, [demoData]);
 
-  // Función para copiar texto al portapapeles de forma amigable
   const handleCopy = (text: string, fieldKey: string) => {
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
     setCopiedField(fieldKey);
-    setTimeout(() => {
+    window.setTimeout(() => {
       setCopiedField(null);
     }, 2000);
   };
@@ -240,263 +269,286 @@ export default function DemoLoadingPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-[#0a0a0c] overflow-hidden font-sans text-slate-200 p-4">
-      {/* Fondo con gradientes premium consistentes */}
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-gradient-to-tr from-[#1e1b4b] to-[#311042] opacity-35 blur-[120px]" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-[#0f172a] to-[#022c22] opacity-30 blur-[120px]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 font-sans text-slate-700">
+      <div className="absolute inset-0" aria-hidden="true">
+        <div className="absolute left-[8%] top-14 h-64 w-64 rounded-full bg-teal-100/80 blur-3xl" />
+        <div className="absolute right-[10%] top-24 h-72 w-72 rounded-full bg-sky-100/70 blur-3xl" />
+        <div className="absolute bottom-8 left-1/3 h-80 w-80 rounded-full bg-white blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_65%_55%_at_50%_50%,#000_68%,transparent_100%)]" />
+      </div>
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
-
-      <div className="relative z-10 w-full max-w-[580px] p-2">
-        {/* 1. ESTADO DE CARGA */}
-        {isLoading && (
-          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 animate-in fade-in duration-500">
-            <div className="relative flex items-center justify-center">
-              {/* Spinner animado decorativo exterior */}
-              <div className="absolute w-24 h-24 rounded-full border border-slate-800 border-t-emerald-500 animate-spin duration-1000" />
-              {/* Icono central de actividad clínica */}
-              <div className="w-16 h-16 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.15)] animate-pulse">
-                <Activity className="w-8 h-8 text-emerald-400" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Creando Entorno Efímero
-              </h2>
-              <div className="h-6 flex items-center justify-center">
-                <p className="text-sm text-slate-400 font-medium transition-all duration-300 animate-pulse">
-                  {LOADING_STEPS[stepIndex]}
-                </p>
-              </div>
-            </div>
-
-            {/* Barra de progreso visual abstracta */}
-            <div className="w-48 h-1 bg-slate-900 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full w-2/3 animate-pulse" />
-            </div>
+      <div className="relative z-10 w-full max-w-[720px] p-2">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16)]">
+            <Activity className="size-7 stroke-[2.4]" />
           </div>
-        )}
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-800">
+            Clinicalyx
+          </h1>
+          <p className="mt-1 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            Medical Suite
+          </p>
+          <p className="mt-3 text-sm font-medium text-slate-500">
+            Entorno demo efimero, seguro y aislado para explorar la suite medica.
+          </p>
+        </div>
 
-        {/* 2. ESTADO DE ERROR */}
-        {!isLoading && error && (
-          <Card className="border-red-950/60 bg-slate-950/60 backdrop-blur-xl shadow-2xl p-2 animate-in scale-in duration-300">
-            <CardHeader className="text-center pb-4">
-              <div className="mx-auto w-12 h-12 rounded-xl bg-red-950/30 border border-red-900/40 flex items-center justify-center mb-3">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+        {isLoading ? (
+          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.03)] fade-in duration-500">
+            <CardContent className="flex flex-col items-center justify-center space-y-6 px-6 py-12 text-center">
+              <div className="relative flex items-center justify-center">
+                <div className="absolute size-24 animate-spin rounded-full border border-teal-200 border-t-teal-500 duration-1000" />
+                <div className="flex size-16 items-center justify-center rounded-[22px] bg-[linear-gradient(145deg,#effcfb,#d8fbfa)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.14)]">
+                  <Activity className="size-8" />
+                </div>
               </div>
-              <CardTitle className="text-lg font-bold text-white">
-                Fallo al inicializar demo
+
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold tracking-tight text-slate-800">
+                  Preparando tu sandbox clinico
+                </h2>
+                <div className="flex h-6 items-center justify-center">
+                  <p className="animate-pulse text-sm font-medium text-slate-500 transition-all duration-300">
+                    {LOADING_STEPS[stepIndex]}
+                  </p>
+                </div>
+              </div>
+
+              <div className="h-2 w-56 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-[linear-gradient(145deg,#25cbc9,#1da2be)] shadow-[0_6px_18px_rgba(29,162,190,0.18)]" />
+              </div>
+
+              <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-teal-100 bg-teal-50/70 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-teal-700">
+                    Seguridad
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Aislamiento por tenant y RLS.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-sky-700">
+                    Datos demo
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Pacientes y citas de ejemplo.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-700">
+                    Tiempo real
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Configuracion automatica en curso.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {!isLoading && error ? (
+          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.03)] scale-in duration-300">
+            <CardHeader className="pb-4 text-center">
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[18px] border border-red-100 bg-red-50 text-red-500">
+                <AlertCircle className="size-6" />
+              </div>
+              <CardTitle className="text-lg font-bold text-slate-800">
+                Fallo al inicializar la demo
               </CardTitle>
-              <CardDescription className="text-slate-400 text-xs mt-1">
-                La solicitud de creación de entorno ha sido denegada.
+              <CardDescription className="mt-1 text-xs text-slate-500">
+                La solicitud de creacion del entorno fue rechazada o interrumpida.
               </CardDescription>
             </CardHeader>
-            <CardContent className="text-center pb-6">
-              <p className="text-sm text-slate-300 bg-red-950/10 border border-red-950/40 p-4 rounded-lg font-medium leading-relaxed">
+            <CardContent className="pb-6 text-center">
+              <p className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium leading-relaxed text-red-600">
                 {error.includes("Too many requests") || error.includes("429")
-                  ? "Límite de solicitudes excedido por seguridad IP (Anti-DDoS). Por favor, espere 1 hora para intentarlo de nuevo."
+                  ? "Limite de solicitudes excedido por seguridad IP. Espera 1 hora antes de intentarlo nuevamente."
                   : error}
               </p>
             </CardContent>
-            <CardFooter className="flex justify-center border-t border-slate-900/80 pt-4">
+            <CardFooter className="flex justify-center border-t border-slate-100 pt-4">
               <Button
                 onClick={() => router.push("/login")}
-                className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-medium px-6 py-5 rounded-lg cursor-pointer transition-colors"
+                className="h-12 cursor-pointer rounded-2xl bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-6 font-semibold text-white shadow-[0_14px_28px_rgba(29,162,190,0.18)] transition-all duration-300 hover:brightness-105"
               >
-                Volver al Login
+                Volver al login
               </Button>
             </CardFooter>
           </Card>
-        )}
+        ) : null}
 
-        {/* 3. PANTALLA DE ÉXITO Y CREDENCIALES */}
-        {!isLoading && !error && demoData && (
-          <Card className="border-slate-800/80 bg-slate-950/40 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-500">
-            <CardHeader className="text-center pb-4">
-              <div className="mx-auto w-12 h-12 rounded-xl bg-emerald-950/30 border border-emerald-800/40 flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400 animate-bounce" />
+        {!isLoading && !error && demoData ? (
+          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.03)] fade-in zoom-in-95 duration-500">
+            <CardHeader className="pb-4 text-center">
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#e7fffb,#d3faf3)] text-teal-600 shadow-[0_10px_24px_rgba(20,184,166,0.12)]">
+                <CheckCircle2 className="size-6" />
               </div>
-              <CardTitle className="text-2xl font-extrabold text-white tracking-tight">
-                ¡Tu sandbox está listo!
+              <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-800">
+                ¡Tu sandbox esta listo!
               </CardTitle>
-              <CardDescription className="text-slate-400 text-sm">
-                Se ha generado un entorno clínico temporal (Sandbox aislado por RLS)
+              <CardDescription className="text-sm text-slate-500">
+                Se genero un entorno clinico temporal, aislado y seguro para tus pruebas.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {/* Información General del Tenant */}
-              <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-900 bg-slate-950/60 text-xs text-slate-400 font-medium">
-                <Building className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className="truncate">
-                  <strong>Demo Tenant:</strong> {demoData.tenant_id}
-                </span>
-                <button
-                  onClick={() => handleCopy(demoData.tenant_id, "tenant")}
-                  className="ml-auto p-1 hover:bg-slate-900 rounded transition-colors text-slate-500 hover:text-slate-300"
-                  title="Copiar Tenant ID"
-                >
-                  {copiedField === "tenant" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
+                  <Building className="size-4 shrink-0 text-teal-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      Demo Tenant
+                    </p>
+                    <p className="mt-1 truncate font-mono text-[11px] text-slate-700">
+                      {demoData.tenant_id}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(demoData.tenant_id, "tenant")}
+                    className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+                    title="Copiar tenant ID"
+                  >
+                    {copiedField === "tenant" ? (
+                      <Check className="size-3.5 text-teal-600" />
+                    ) : (
+                      <Copy className="size-3.5" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
+                  <KeyRound className="size-4 shrink-0 text-teal-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      Contrasena comun
+                    </p>
+                    <p className="mt-1 font-mono text-[11px] text-slate-700">
+                      {demoData.credentials.password}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(demoData.credentials.password, "password")}
+                    className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+                    title="Copiar contrasena"
+                  >
+                    {copiedField === "password" ? (
+                      <Check className="size-3.5 text-teal-600" />
+                    ) : (
+                      <Copy className="size-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
 
-              {/* Contraseña compartida */}
-              <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-900 bg-slate-950/60 text-xs text-slate-400 font-medium">
-                <KeyRound className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>
-                  <strong>Contraseña común:</strong> <code className="bg-slate-900 px-1.5 py-0.5 rounded text-white text-xs font-mono">{demoData.credentials.password}</code>
-                </span>
-                <button
-                  onClick={() => handleCopy(demoData.credentials.password, "password")}
-                  className="ml-auto p-1 hover:bg-slate-900 rounded transition-colors text-slate-500 hover:text-slate-300"
-                  title="Copiar Contraseña"
-                >
-                  {copiedField === "password" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
-              {actionError && (
-                <div className="rounded-lg border border-red-950/40 bg-red-950/10 p-3 text-xs font-medium text-red-300">
+              {actionError ? (
+                <div className="rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-medium text-red-600">
                   {actionError}
                 </div>
-              )}
+              ) : null}
 
-              {/* Tarjetas de Credenciales */}
-              <div className="grid grid-cols-1 gap-2.5 mt-2">
-                {/* 1. DOCTOR (Sesión activa) */}
-                <div className="relative group flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-950/5 p-3 transition-all duration-300 hover:border-emerald-500/50">
-                  <div className="flex items-center gap-3">
-                    <RoleIllustration role="doctor" compact />
-                    <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                        DOCTOR
-                      </span>
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 animate-pulse bg-emerald-500/20 px-1.5 py-0.5 rounded">
-                        <UserCheck className="w-3 h-3" />
-                        Autologin Activo
-                      </span>
-                    </div>
-                    <p className="text-xs font-mono text-white font-medium mt-1">
-                      {demoData.credentials.doctor_email}
-                    </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleCopy(demoData.credentials.doctor_email, "doctor")}
-                      className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                      {copiedField === "doctor" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    <Button
-                      type="button"
-                      onClick={() => handleEnterAsRole("doctor")}
-                      disabled={switchingRole !== null}
-                      className="h-9 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-slate-950 hover:bg-emerald-400"
-                    >
-                      {switchingRole === "doctor" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
-                    </Button>
-                  </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Roles disponibles
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Entra con cualquiera de los perfiles del entorno demo usando la misma contrasena.
+                  </p>
                 </div>
 
-                {/* 2. RECEPCIONISTA */}
-                <div className="group flex items-center justify-between rounded-lg border border-slate-900 bg-slate-950/20 p-3 transition-all duration-300 hover:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <RoleIllustration role="receptionist" compact />
-                    <div className="space-y-0.5">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                        RECEPCIONISTA
-                      </span>
-                    </div>
-                    <p className="text-xs font-mono text-slate-300 font-medium mt-1">
-                      {demoData.credentials.receptionist_email}
-                    </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleCopy(demoData.credentials.receptionist_email, "receptionist")}
-                      className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                      {copiedField === "receptionist" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleEnterAsRole("receptionist")}
-                      disabled={switchingRole !== null}
-                      className="h-9 rounded-lg border-slate-800 px-3 text-xs font-semibold text-slate-200"
-                    >
-                      {switchingRole === "receptionist" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
-                    </Button>
-                  </div>
-                </div>
+                <div className="grid gap-3">
+                  {(["doctor", "receptionist", "admin"] as const).map((role) => {
+                    const styles = ROLE_CARD_STYLES[role];
+                    const email = emailForRole(demoData.credentials, role);
+                    const isDoctor = role === "doctor";
 
-                {/* 3. SUPERADMIN */}
-                <div className="group flex items-center justify-between rounded-lg border border-slate-900 bg-slate-950/20 p-3 transition-all duration-300 hover:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <RoleIllustration role="admin" compact />
-                    <div className="space-y-0.5">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">
-                        SUPERADMIN
-                      </span>
-                    </div>
-                    <p className="text-xs font-mono text-slate-300 font-medium mt-1">
-                      {demoData.credentials.admin_email}
-                    </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleCopy(demoData.credentials.admin_email, "admin")}
-                      className="p-2 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                      {copiedField === "admin" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleEnterAsRole("admin")}
-                      disabled={switchingRole !== null}
-                      className="h-9 rounded-lg border-slate-800 px-3 text-xs font-semibold text-slate-200"
-                    >
-                      {switchingRole === "admin" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
-                    </Button>
-                  </div>
+                    return (
+                      <div
+                        key={role}
+                        className={`group flex flex-col gap-3 rounded-[24px] border p-4 transition-all duration-300 sm:flex-row sm:items-center sm:justify-between ${styles.border}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <RoleIllustration role={role} compact className="size-12" />
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${styles.badge}`}
+                              >
+                                {ROLE_LABELS[role]}
+                              </span>
+                              {isDoctor ? (
+                                <span className="flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-teal-700">
+                                  <UserCheck className="size-3" />
+                                  {styles.hint}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="font-mono text-xs font-medium text-slate-700">
+                              {email}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <button
+                            onClick={() => handleCopy(email, role)}
+                            className="rounded-2xl border border-white/70 bg-white/85 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                            title={`Copiar correo de ${ROLE_LABELS[role]}`}
+                          >
+                            {copiedField === role ? (
+                              <Check className="size-4 text-teal-600" />
+                            ) : (
+                              <Copy className="size-4" />
+                            )}
+                          </button>
+                          <Button
+                            type="button"
+                            variant={role === "doctor" ? "default" : "outline"}
+                            onClick={() => handleEnterAsRole(role)}
+                            disabled={switchingRole !== null}
+                            className={`h-10 rounded-2xl px-4 text-xs font-semibold ${styles.button}`}
+                          >
+                            {switchingRole === role ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              "Entrar"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Advertencia de expiración */}
-              <div className="flex items-start gap-2.5 p-3 rounded-lg border border-yellow-900/30 bg-yellow-950/10 text-yellow-500 text-[11px] font-medium leading-normal">
-                <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-yellow-500" />
+              <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-medium leading-normal text-amber-700">
+                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <span>
-                  Este sandbox tiene políticas de destrucción automática. Toda la información será purgada por el Grim Reaper en un periodo de 2 horas.
+                  Este sandbox tiene politicas de destruccion automatica. Toda la informacion sera purgada por el Grim Reaper en un periodo de 2 horas.
                 </span>
               </div>
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-3 pt-3 pb-6 border-t border-slate-900/80">
+            <CardFooter className="flex flex-col gap-3 border-t border-slate-100 pb-6 pt-4">
               <Button
                 onClick={() => handleEnterAsRole("doctor")}
                 disabled={switchingRole !== null}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-bold transition-all duration-300 py-5 rounded-lg shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 group cursor-pointer"
+                className="group flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(145deg,#25cbc9,#1da2be)] font-bold text-white shadow-[0_14px_28px_rgba(29,162,190,0.18)] transition-all duration-300 hover:brightness-105"
               >
                 {switchingRole === "doctor" ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                  <Loader2 className="size-4 animate-spin text-white" />
                 ) : (
                   <>
-                    <span>Enter System</span>
-                    <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
+                    <span>Entrar al sistema</span>
+                    <ArrowRight className="size-4 text-white transition-transform group-hover:translate-x-1" />
                   </>
                 )}
               </Button>
             </CardFooter>
           </Card>
-        )}
+        ) : null}
       </div>
     </div>
   );
