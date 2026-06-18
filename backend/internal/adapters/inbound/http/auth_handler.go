@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -68,12 +69,60 @@ func NewAuthHandler(
 		jwtService:         jwtService,
 		authMiddleware:     authMiddleware,
 		loginRateLimiter:   NewLoginRateLimiter(ctx),
-		// setupTokenMW se asigna vía SetSetupTokenMiddleware desde main.go
-		// una vez que la configuración está disponible.
-		setupTokenMW: func(next http.Handler) http.Handler {
-			// Por defecto, rechaza siempre que no se haya configurado un token.
-			// Esto previene que el endpoint quede accidentalmente abierto si
-			// el operador olvida inyectar SETUP_TOKEN.
+		// setupTokenMW queda nil hasta que main.go llame a
+		// SetSetupTokenMiddleware. El getter setupTokenMiddleware() aplica
+		// un fail-closed por defecto.
+	}
+}
+
+// SetSetupTokenMiddleware inyecta el middleware que valida el header
+// X-Setup-Token contra el token configurado en el arranque. Si
+// expectedToken está vacío, el endpoint /api/v1/auth/setup queda cerrado
+// (responde 503), porque un SetupTenant sin gate es un riesgo crítico
+// de tenant-takeover.
+func (h *AuthHandler) SetSetupTokenMiddleware(expectedToken string) {
+	if expectedToken == "" {
+		h.setupTokenMW = func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": "Endpoint deshabilitado: el bootstrap de tenant no está configurado (SETUP_TOKEN ausente)",
+				})
+			})
+		}
+		return
+	}
+
+	// Captura el token esperado en el closure para evitar condiciones de carrera
+	// si el handler fuera reconfigurado en caliente.
+	expected := []byte(expectedToken)
+	h.setupTokenMW = func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			provided := []byte(r.Header.Get("X-Setup-Token"))
+			// subtle.ConstantTimeCompare requiere slices de igual longitud.
+			// Si las longitudes difieren, devolvemos 401 sin filtrar info
+			// sobre la longitud esperada.
+			if len(provided) != len(expected) || subtle.ConstantTimeCompare(provided, expected) != 1 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": "No autorizado: token de bootstrap inválido o ausente",
+				})
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// setupTokenMiddleware devuelve el middleware configurado por SetSetupTokenMiddleware.
+// Si no se ha configurado, se aplica un middleware fail-closed que rechaza
+// todas las peticiones con 503. Esto evita que el endpoint quede abierto
+// si el operador olvida inyectar el SETUP_TOKEN.
+func (h *AuthHandler) setupTokenMiddleware() func(http.Handler) http.Handler {
+	if h.setupTokenMW == nil {
+		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusServiceUnavailable)
@@ -81,14 +130,8 @@ func NewAuthHandler(
 					"error": "Endpoint deshabilitado: el bootstrap de tenant no está configurado",
 				})
 			})
-		},
+		}
 	}
-}
-
-// setupTokenMiddleware valida el token de un solo uso enviado en el header
-// X-Setup-Token contra el valor configurado en el arranque. Se define en
-// el commit de hardening de SetupTenant.
-func (h *AuthHandler) setupTokenMiddleware() func(http.Handler) http.Handler {
 	return h.setupTokenMW
 }
 

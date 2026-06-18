@@ -138,6 +138,14 @@ func main() {
 		jwtService,
 		authMiddleware,
 	)
+	// Inyectar el middleware de setup-token desde la configuración. Si
+	// SETUP_TOKEN está vacío, el endpoint /api/v1/auth/setup queda cerrado
+	// (responde 503). Esto previene tenant-takeover por cualquier caller
+	// que conozca un UUID de tenant sin usuarios.
+	authHandler.SetSetupTokenMiddleware(cfg.SetupToken)
+	if cfg.SetupToken == "" {
+		log.Println("[WARN] SETUP_TOKEN ausente: POST /api/v1/auth/setup deshabilitado. Use un token de bootstrap para provisionar nuevos tenants.")
+	}
 	consultationHandler := inboundHTTP.NewConsultationHandler(
 		recordConsultationUC,
 		getConsultationHistoryUC,

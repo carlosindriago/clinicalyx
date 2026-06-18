@@ -127,10 +127,36 @@ func TestAuthHandler_Integration(t *testing.T) {
 	toggleUserStatusUC := usecases.NewToggleUserStatusUseCase(userRepo, hasher)
 
 	handler := NewAuthHandler(context.Background(), setupTenantUC, loginUC, logoutUC, toggleUserStatusUC, userRepo, jwtService, authMiddleware)
+	// Configurar el setup-token de bootstrap para habilitar el endpoint
+	// en el test (en producción se inyecta desde SETUP_TOKEN en .env).
+	const testSetupToken = "thisisaverysecrettoken32bytes_long!"
+	handler.SetSetupTokenMiddleware(testSetupToken)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
-	t.Run("1. Setup Tenant Exitoso (Crea primer SUPERADMIN)", func(t *testing.T) {
+	t.Run("0. Setup Tenant sin token retorna 401", func(t *testing.T) {
+		body := map[string]string{
+			"first_name": "Carlos",
+			"last_name":  "Indriago",
+			"email":      "should-not-be-created@clinicalyx.com",
+			"password":   "supersecure123",
+			"phone":      "+51999888777",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/setup", bytes.NewBuffer(jsonBody))
+		req.Header.Set("X-Tenant-ID", tenantID)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("sin token se esperaba 401, se obtuvo %d. Body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("1. Setup Tenant Exitoso con token válido (Crea primer SUPERADMIN)", func(t *testing.T) {
 		body := map[string]string{
 			"first_name": "Carlos",
 			"last_name":  "Indriago",
@@ -143,6 +169,7 @@ func TestAuthHandler_Integration(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/setup", bytes.NewBuffer(jsonBody))
 		req.Header.Set("X-Tenant-ID", tenantID)
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Setup-Token", testSetupToken)
 
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)

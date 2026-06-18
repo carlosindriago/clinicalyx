@@ -20,6 +20,17 @@ type Config struct {
 	JWTRefreshDurationDays   int      `envconfig:"JWT_REFRESH_DURATION_DAYS" default:"7"`
 	CORSAllowedOrigins       []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"http://localhost:3000"`
 	EnableEphemeralDemo      bool     `envconfig:"ENABLE_EPHEMERAL_DEMO" default:"false"`
+	// SetupToken autentica el endpoint POST /api/v1/auth/setup que crea el
+	// primer SUPERADMIN de un tenant. Si está vacío, el endpoint queda cerrado.
+	// Operacionalmente es un secreto que se inyecta al despliegue; nunca debe
+	// aparecer en el repositorio. Comparación en tiempo constante.
+	SetupToken string `envconfig:"SETUP_TOKEN"`
+	// TrustedProxiesIPs lista de IPs/CIDRs de proxies confiables (uno por
+	// entrada) que tienen permiso para fijar X-Forwarded-For / X-Real-IP.
+	// Si la petición llega de una IP que no está en esta lista, los headers
+	// de proxy se ignoran y se usa RemoteAddr. Lista vacía = modo seguro por
+	// defecto (nunca confiar en headers de proxy).
+	TrustedProxiesIPs []string `envconfig:"TRUSTED_PROXIES_IPS"`
 	// AWS S3 / MinIO configuration
 	AWSRegion          string `envconfig:"AWS_REGION" default:"us-east-1"`
 	AWSAccessKeyID     string `envconfig:"AWS_ACCESS_KEY_ID" default:"clinicalyx_admin"`
@@ -65,6 +76,12 @@ func (c *Config) Validate() error {
 	}
 	if c.JWTRefreshDurationDays <= 0 {
 		return fmt.Errorf("JWT_REFRESH_DURATION_DAYS debe ser mayor que 0")
+	}
+	// Si se proporciona SETUP_TOKEN, exigir una longitud mínima razonable
+	// para evitar tokens triviales en producción. Si está vacío, el endpoint
+	// /api/v1/auth/setup quedará cerrado (comportamiento seguro por defecto).
+	if c.SetupToken != "" && len(c.SetupToken) < 32 {
+		return fmt.Errorf("SETUP_TOKEN debe tener al menos 32 caracteres (o estar vacío para deshabilitar bootstrap)")
 	}
 	return nil
 }
