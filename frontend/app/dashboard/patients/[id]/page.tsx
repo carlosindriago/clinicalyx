@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ShieldCheck, Mail, Phone, CreditCard, Calendar } from "lucide-react";
 import PatientProfileTabs from "./patient-profile-tabs";
 import MedicalFileDropzone from "@/components/patients/MedicalFileDropzone";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { backendBaseUrl, isValidUUID } from "@/lib/backend";
 
 type PatientProfilePageProps = {
   params: Promise<{ id: string }>;
@@ -56,17 +56,29 @@ function getInitials(name: string): string {
 }
 
 async function fetchPatientDetail(id: string): Promise<PatientDetailResult> {
-  const headerStore = await headers();
-  const host = headerStore.get("host") ?? "localhost:3000";
-  const protocol = headerStore.get("x-forwarded-proto") ?? "http";
+  // Defense-in-depth: validar UUID antes de construir cualquier URL,
+  // para no dar información al backend sobre inputs malformados.
+  if (!isValidUUID(id)) {
+    return { patient: null, error: "Identificador de paciente inválido" };
+  }
+
+  // Construir la URL SOLO desde BACKEND_API_URL (variable de entorno del
+  // servidor). NUNCA desde headers del request (Host, X-Forwarded-Proto),
+  // porque eso permitiría a un atacante SSRF con redirección del fetch
+  // hacia un servidor arbitrario conservando las cookies de sesión.
+  //
+  // Tampoco se reenvía X-Tenant-ID: el backend es la única fuente de
+  // verdad para el tenant y lo extrae del JWT firmado criptográficamente.
+  const backendUrl = backendBaseUrl();
+  const upstreamUrl = `${backendUrl}/patients/${id}`;
 
   try {
-    const response = await fetch(`${protocol}://${host}/api/patients/${id}`, {
-      headers: {
-        ...(headerStore.get("cookie") ? { Cookie: headerStore.get("cookie") ?? "" } : {}),
-        ...(headerStore.get("x-tenant-id") ? { "X-Tenant-ID": headerStore.get("x-tenant-id") ?? "" } : {}),
-      },
+    const response = await fetch(upstreamUrl, {
+      method: "GET",
       cache: "no-store",
+      // Next.js Server Components reenvían automáticamente las cookies de
+      // la petición entrante al hacer fetch desde el server. NO construimos
+      // headers manualmente a partir del request: eso era el vector SSRF.
     });
 
     const payload: unknown = await response.json().catch(() => ({}));
