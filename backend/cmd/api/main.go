@@ -119,6 +119,7 @@ func main() {
 	setupTenantUC := usecases.NewSetupTenantUseCase(userRepo, passwordHasher)
 	loginUC := usecases.NewLoginUseCase(userRepo, sessionRepo, passwordHasher)
 	logoutUC := usecases.NewLogoutUseCase(sessionRepo)
+	refreshSessionUC := usecases.NewRefreshSessionUseCase(sessionRepo, userRepo)
 	toggleUserStatusUC := usecases.NewToggleUserStatusUseCase(userRepo, passwordHasher)
 	recordConsultationUC := usecases.NewRecordConsultationUseCase(consultationRepo, patientRepo)
 	getConsultationHistoryUC := usecases.NewGetConsultationHistoryUseCase(consultationRepo, patientRepo)
@@ -141,6 +142,7 @@ func main() {
 		setupTenantUC,
 		loginUC,
 		logoutUC,
+		refreshSessionUC,
 		toggleUserStatusUC,
 		userRepo,
 		jwtService,

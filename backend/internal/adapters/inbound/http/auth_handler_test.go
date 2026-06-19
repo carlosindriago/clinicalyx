@@ -124,9 +124,10 @@ func TestAuthHandler_Integration(t *testing.T) {
 	setupTenantUC := usecases.NewSetupTenantUseCase(userRepo, hasher)
 	loginUC := usecases.NewLoginUseCase(userRepo, sessionRepo, hasher)
 	logoutUC := usecases.NewLogoutUseCase(sessionRepo)
+	refreshSessionUC := usecases.NewRefreshSessionUseCase(sessionRepo, userRepo)
 	toggleUserStatusUC := usecases.NewToggleUserStatusUseCase(userRepo, hasher)
 
-	handler := NewAuthHandler(context.Background(), setupTenantUC, loginUC, logoutUC, toggleUserStatusUC, userRepo, jwtService, authMiddleware, nil)
+	handler := NewAuthHandler(context.Background(), setupTenantUC, loginUC, logoutUC, refreshSessionUC, toggleUserStatusUC, userRepo, jwtService, authMiddleware, nil)
 	// Configurar el setup-token de bootstrap para habilitar el endpoint
 	// en el test (en producción se inyecta desde SETUP_TOKEN en .env).
 	const testSetupToken = "thisisaverysecrettoken32bytes_long!"

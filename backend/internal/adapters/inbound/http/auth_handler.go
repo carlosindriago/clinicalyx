@@ -41,6 +41,7 @@ type AuthHandler struct {
 	setupTenantUC      *usecases.SetupTenantUseCase
 	loginUC            *usecases.LoginUseCase
 	logoutUC           *usecases.LogoutUseCase
+	refreshSessionUC   *usecases.RefreshSessionUseCase
 	toggleUserStatusUC *usecases.ToggleUserStatusUseCase
 	userRepo           ports.UserRepository
 	jwtService         *crypto.JWTService
@@ -59,6 +60,7 @@ func NewAuthHandler(
 	setupTenantUC *usecases.SetupTenantUseCase,
 	loginUC *usecases.LoginUseCase,
 	logoutUC *usecases.LogoutUseCase,
+	refreshSessionUC *usecases.RefreshSessionUseCase,
 	toggleUserStatusUC *usecases.ToggleUserStatusUseCase,
 	userRepo ports.UserRepository,
 	jwtService *crypto.JWTService,
@@ -69,6 +71,7 @@ func NewAuthHandler(
 		setupTenantUC:      setupTenantUC,
 		loginUC:            loginUC,
 		logoutUC:           logoutUC,
+		refreshSessionUC:   refreshSessionUC,
 		toggleUserStatusUC: toggleUserStatusUC,
 		userRepo:           userRepo,
 		jwtService:         jwtService,
@@ -145,6 +148,12 @@ func (h *AuthHandler) setupTokenMiddleware() func(http.Handler) http.Handler {
 func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 	r.With(TenantExtractor, h.setupTokenMiddleware()).Post("/api/v1/auth/setup", h.SetupTenant)
 	r.With(TenantExtractor, h.loginRateLimiter).Post("/api/v1/auth/login", h.Login)
+	// Refresh: lee el refresh_token de la cookie HttpOnly, valida la
+	// firma, verifica que la sesión no esté revocada, rota (revoca la
+	// vieja + crea una nueva) y emite un par nuevo de access/refresh.
+	// El tenant se extrae del JWT firmado criptográficamente, NO del
+	// header X-Tenant-ID (que el cliente puede falsificar).
+	r.With(TenantExtractor).Post("/api/v1/auth/refresh", h.Refresh)
 	r.With(TenantExtractor, h.authMiddleware.Handler).Post("/api/v1/auth/logout", h.Logout)
 	r.With(TenantExtractor, h.authMiddleware.Handler, RequireRole(domain.UserRoleSuperAdmin)).Put("/api/v1/auth/users/{id}/status", h.ToggleStatus)
 }
@@ -277,7 +286,123 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Logout cierra la sesión revocándola y destruyendo las cookies HTTP-Only de sesión.
+// Refresh implementa POST /api/v1/auth/refresh con rotación de refresh
+// token. Lee el refresh_token de la cookie HttpOnly (NO del body, para
+// evitar que sea exfiltrado por XSS), valida la firma, ejecuta la
+// rotación (revoca la sesión vieja y crea una nueva) y emite un par
+// fresco de access_token y refresh_token en cookies HttpOnly.
+//
+// Si el refresh token es inválido, expirado, o la sesión fue revocada,
+// devuelve 401 sin filtrar la causa específica. Tras un 401, el cliente
+// debe re-loguear.
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// 1. Extraer el refresh_token de la cookie HttpOnly.
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil || cookie.Value == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"No autorizado: refresh token ausente"}`))
+		return
+	}
+
+	// 2. Validar firma y claims del JWT.
+	claims, err := h.jwtService.ValidateToken(cookie.Value)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"No autorizado: refresh token inválido o expirado"}`))
+		return
+	}
+
+	// 3. Ejecutar la rotación en el caso de uso. ErrRefreshTokenInvalid
+	// se traduce a 401; cualquier otro error a 500.
+	resp, err := h.refreshSessionUC.Execute(r.Context(), usecases.RefreshSessionDTO{
+		RefreshClaims: claims,
+	})
+	if err != nil {
+		if errors.Is(err, usecases.ErrRefreshTokenInvalid) {
+			// Limpiar las cookies potencialmente obsoletas para que el
+			// cliente no siga reintentando con tokens viejos.
+			h.clearAuthCookies(w)
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"No autorizado: refresh token inválido, expirado o revocado"}`))
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"Error al refrescar la sesión"}`))
+		return
+	}
+
+	// 4. Generar el nuevo par de tokens.
+	userID, _ := domain.ParseUserID(resp.UserID)
+	tenantID, _ := domain.ParseTenantID(resp.TenantID)
+
+	accessToken, err := h.jwtService.GenerateAccessToken(userID, tenantID, resp.Role, resp.NewSessionID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"Error al generar access token"}`))
+		return
+	}
+
+	refreshToken, err := h.jwtService.GenerateRefreshToken(userID, tenantID, resp.NewSessionID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"Error al generar refresh token"}`))
+		return
+	}
+
+	// 5. Sobrescribir las cookies con el par nuevo.
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		Path:     "/",
+		Expires:  time.Now().Add(15 * time.Minute),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Path:     "/",
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":     "Sesión refrescada correctamente",
+		"user_id":     resp.UserID,
+		"tenant_id":   resp.TenantID,
+		"expires_at":  resp.ExpiresAt.UTC().Format(time.RFC3339),
+	})
+}
+
+// clearAuthCookies elimina ambas cookies de sesión. Se usa en el
+// endpoint /refresh cuando el token presentado es inválido, para
+// forzar al cliente a re-loguear limpiamente.
+func (h *AuthHandler) clearAuthCookies(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 

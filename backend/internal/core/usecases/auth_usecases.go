@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"clinicalyx/backend/internal/adapters/crypto"
 	"clinicalyx/backend/internal/core/domain"
 	"clinicalyx/backend/internal/core/ports"
 	"github.com/google/uuid"
@@ -193,6 +194,112 @@ func (uc *LoginUseCase) Execute(ctx context.Context, dto LoginDTO) (LoginRespons
 		UserID:      user.ID().String(),
 		SessionID:   sessionID,
 		Role:        user.Role(),
+	}, nil
+}
+
+// --- RefreshSessionUseCase ---
+
+// ErrRefreshTokenInvalid se devuelve cuando el refresh token es inválido,
+// expirado, la sesión fue revocada o el subject no coincide con un usuario
+// activo del tenant. En cualquier caso, la respuesta al cliente es 401
+// sin filtrar cuál fue la causa específica.
+var ErrRefreshTokenInvalid = errors.New("refresh token inválido, expirado o revocado")
+
+type RefreshSessionDTO struct {
+	RefreshClaims *crypto.JWTClaims
+}
+
+type RefreshSessionResponse struct {
+	UserID      string
+	TenantID    string
+	Role        domain.UserRole
+	NewSessionID string
+	ExpiresAt    time.Time
+}
+
+type RefreshSessionUseCase struct {
+	sessionRepo ports.SessionRepository
+	userRepo    ports.UserRepository
+}
+
+func NewRefreshSessionUseCase(
+	sessionRepo ports.SessionRepository,
+	userRepo ports.UserRepository,
+) *RefreshSessionUseCase {
+	return &RefreshSessionUseCase{
+		sessionRepo: sessionRepo,
+		userRepo:    userRepo,
+	}
+}
+
+// Execute implementa refresh token rotation: la sesión vieja se revoca
+// y se emite una nueva con un sessionID fresco. Esto mitiga replay
+// attacks: si un atacante captura un refresh token usado, ya no le sirve.
+//
+// Pasos:
+//  1. Verificar que la sesión no esté revocada ni expirada en la DB.
+//  2. Verificar que el user_id del claim corresponde a un usuario activo
+//     del tenant (defense-in-depth: el JWT ya pasó la firma, pero el
+//     usuario podría haber sido deshabilitado después de emitido el token).
+//  3. Revocar la sesión vieja (idempotente: re-revocar no es error).
+//  4. Crear una nueva sesión con un sessionID fresco.
+//  5. Devolver la info necesaria para emitir el nuevo access/refresh pair
+//     en la capa de transporte.
+func (uc *RefreshSessionUseCase) Execute(
+	ctx context.Context,
+	dto RefreshSessionDTO,
+) (RefreshSessionResponse, error) {
+	if dto.RefreshClaims == nil {
+		return RefreshSessionResponse{}, ErrRefreshTokenInvalid
+	}
+	claims := dto.RefreshClaims
+
+	tenantID, err := domain.ParseTenantID(claims.TenantID)
+	if err != nil {
+		return RefreshSessionResponse{}, ErrRefreshTokenInvalid
+	}
+
+	userID, err := domain.ParseUserID(claims.UserID)
+	if err != nil {
+		return RefreshSessionResponse{}, ErrRefreshTokenInvalid
+	}
+
+	// 1. Verificar que la sesión no esté revocada ni expirada.
+	revoked, err := uc.sessionRepo.IsRevoked(ctx, claims.SessionID, tenantID)
+	if err != nil {
+		return RefreshSessionResponse{}, ErrRefreshTokenInvalid
+	}
+	if revoked {
+		return RefreshSessionResponse{}, ErrRefreshTokenInvalid
+	}
+
+	// 2. Verificar que el usuario sigue activo en el tenant.
+	user, err := uc.userRepo.FindByID(ctx, tenantID, userID)
+	if err != nil || user == nil {
+		return RefreshSessionResponse{}, ErrRefreshTokenInvalid
+	}
+	if user.Status() == domain.UserStatusInactive {
+		return RefreshSessionResponse{}, ErrRefreshTokenInvalid
+	}
+
+	// 3. Revocar la sesión vieja (rotation).
+	if err := uc.sessionRepo.RevokeSession(ctx, claims.SessionID, tenantID); err != nil {
+		return RefreshSessionResponse{}, err
+	}
+
+	// 4. Crear nueva sesión con sessionID fresco.
+	newSessionID := uuid.New().String()
+	expiresAt := time.Now().Add(24 * time.Hour)
+	if err := uc.sessionRepo.CreateSession(ctx, newSessionID, user.ID(), tenantID, expiresAt); err != nil {
+		return RefreshSessionResponse{}, err
+	}
+
+	return RefreshSessionResponse{
+		UserID:       user.ID().String(),
+		TenantID:     tenantID.String(),
+		Role:         user.Role(),
+		NewSessionID: newSessionID,
+		ExpiresAt:    expiresAt,
 	}, nil
 }
 
