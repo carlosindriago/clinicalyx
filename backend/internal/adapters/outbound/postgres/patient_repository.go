@@ -56,13 +56,13 @@ func (r *PostgresPatientRepository) Save(ctx context.Context, patient *domain.Pa
 	if err != nil {
 		return fmt.Errorf("error cifrando documento: %w", err)
 	}
-	docBlindIndex := r.crypto.BlindIndex(patient.Document().Value())
+	docBlindIndex := r.crypto.BlindIndex(patient.TenantID(), patient.Document().Value())
 
 	emailEncrypted, err := r.crypto.Encrypt(patient.Email().Value())
 	if err != nil {
 		return fmt.Errorf("error cifrando email: %w", err)
 	}
-	emailBlindIndex := r.crypto.BlindIndex(patient.Email().Value())
+	emailBlindIndex := r.crypto.BlindIndex(patient.TenantID(), patient.Email().Value())
 
 	// 2. Ejecutar inserción dentro de transacción configurada para RLS
 	return r.executeInTransaction(ctx, patient.TenantID(), func(tx *sql.Tx) error {
@@ -164,7 +164,7 @@ func (r *PostgresPatientRepository) FindByID(ctx context.Context, tenantID domai
 // FindByDocument recupera un paciente usando Blind Index y descifra sus datos sensibles.
 func (r *PostgresPatientRepository) FindByDocument(ctx context.Context, tenantID domain.TenantID, docType domain.DocumentType, docValue string) (*domain.Patient, error) {
 	// Calcular el Blind Index del documento buscado para realizar la consulta exacta
-	docBlindIndex := r.crypto.BlindIndex(docValue)
+	docBlindIndex := r.crypto.BlindIndex(tenantID, docValue)
 
 	var (
 		patientIDStr string

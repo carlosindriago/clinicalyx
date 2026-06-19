@@ -31,13 +31,13 @@ func (r *PostgresUserRepository) Save(ctx context.Context, user *domain.User) er
 	if err != nil {
 		return fmt.Errorf("error al cifrar email: %w", err)
 	}
-	emailBlindIndex := r.crypto.BlindIndex(user.Email().Value())
+	emailBlindIndex := r.crypto.BlindIndex(user.TenantID(), user.Email().Value())
 
 	phoneEncrypted, err := r.crypto.Encrypt(user.Phone().Value())
 	if err != nil {
 		return fmt.Errorf("error al cifrar teléfono: %w", err)
 	}
-	phoneBlindIndex := r.crypto.BlindIndex(user.Phone().Value())
+	phoneBlindIndex := r.crypto.BlindIndex(user.TenantID(), user.Phone().Value())
 
 	var mfaSecretEncrypted string
 	if user.MFASecret() != "" {
@@ -91,7 +91,7 @@ func (r *PostgresUserRepository) Save(ctx context.Context, user *domain.User) er
 
 // FindByEmail recupera un usuario usando Blind Index y desencripta sus datos.
 func (r *PostgresUserRepository) FindByEmail(ctx context.Context, tenantID domain.TenantID, emailStr string) (*domain.User, error) {
-	emailBlindIndex := r.crypto.BlindIndex(emailStr)
+	emailBlindIndex := r.crypto.BlindIndex(tenantID, emailStr)
 
 	var (
 		idStr              string

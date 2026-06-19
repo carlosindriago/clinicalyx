@@ -2,6 +2,8 @@ package crypto
 
 import (
 	"testing"
+
+	"clinicalyx/backend/internal/core/domain"
 )
 
 func TestCryptoService(t *testing.T) {
@@ -60,20 +62,49 @@ func TestCryptoService(t *testing.T) {
 		}
 	})
 
-	t.Run("Blind Index determinista y único", func(t *testing.T) {
+	t.Run("Blind Index determinista y único dentro de un tenant", func(t *testing.T) {
+		tenantA, _ := domain.ParseTenantID("11111111-1111-4111-8111-111111111111")
 		val1 := "carlos@clinicalyx.com"
 		val2 := "carlos@clinicalyx.com " // con espacio
 
-		bi1 := service.BlindIndex(val1)
-		bi2 := service.BlindIndex(val1)
+		bi1 := service.BlindIndex(tenantA, val1)
+		bi2 := service.BlindIndex(tenantA, val1)
 
 		if bi1 != bi2 {
-			t.Error("el Blind Index debe ser estrictamente determinista")
+			t.Error("el Blind Index debe ser estrictamente determinista dentro de un tenant")
 		}
 
-		bi3 := service.BlindIndex(val2)
+		bi3 := service.BlindIndex(tenantA, val2)
 		if bi1 == bi3 {
 			t.Error("el Blind Index de valores distintos no debería colisionar")
+		}
+	})
+
+	t.Run("Blind Index per-tenant: mismo email produce hash distinto en tenants distintos", func(t *testing.T) {
+		tenantA, _ := domain.ParseTenantID("11111111-1111-4111-8111-111111111111")
+		tenantB, _ := domain.ParseTenantID("22222222-2222-4222-8222-222222222222")
+		email := "carlos@clinicalyx.com"
+
+		biA := service.BlindIndex(tenantA, email)
+		biB := service.BlindIndex(tenantB, email)
+
+		if biA == biB {
+			t.Error("el mismo email en tenants distintos DEBE producir hashes distintos (anti-correlación cross-tenant)")
+		}
+	})
+
+	t.Run("Blind Index per-tenant: no hay colisiones con separador en valor", func(t *testing.T) {
+		// Verificar que la concatenación con ':' no es ambigua. Es decir,
+		// que tenantA:val("a-b") + sep("c") != tenantA:val("a") + sep("b-c")
+		tenantA, _ := domain.ParseTenantID("11111111-1111-4111-8111-111111111111")
+
+		biCombo1 := service.BlindIndex(tenantA, "a-b:c")  // una sola pieza
+		// (no podemos construir el equivalente "a" + sep + "b-c" sin
+		// cambiar la API, pero verificamos que el hash es estable
+		// y que el separador no produce colisiones obvias).
+		biCombo2 := service.BlindIndex(tenantA, "a:b-c")
+		if biCombo1 == biCombo2 {
+			t.Error("el separador ':' no debería producir colisiones para valores distintos")
 		}
 	})
 }

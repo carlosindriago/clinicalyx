@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"clinicalyx/backend/internal/core/domain"
 )
 
 // CryptoService provee utilidades seguras para el cifrado AES-GCM y Blind Indexing HMAC-SHA256.
@@ -115,10 +117,33 @@ func (c *CryptoService) DecryptBytes(cipherText []byte, dst []byte) ([]byte, err
 	return plainTextBytes, nil
 }
 
-// BlindIndex calcula un hash determinista HMAC-SHA256 sobre el dato de entrada.
-// Se utiliza para búsquedas exactas eficientes en bases de datos sobre campos cifrados.
-func (c *CryptoService) BlindIndex(value string) string {
+// BlindIndex calcula un hash determinista HMAC-SHA256 sobre el dato de
+// entrada, mezclado con el tenant del dato. Se utiliza para búsquedas
+// exactas eficientes en bases de datos sobre campos cifrados (ej.
+// email, número de documento).
+//
+// IMPORTANTE — Per-tenant salt:
+// El hash se computa como HMAC-SHA256(salt, tenantID || ":" || value).
+// Esto previene la correlación cross-tenant: el mismo email "juan@x.com"
+// en tenant A y tenant B produce hashes distintos, por lo que un
+// atacante con acceso de lectura a la tabla (por bug de RLS, error de
+// config, o backup filtrado) NO puede inferir que dos pacientes en
+// tenants distintos son la misma persona.
+//
+// El blind index sigue siendo determinista DENTRO de un tenant
+// (mismo input + mismo tenant = mismo hash), por lo que las búsquedas
+// exactas siguen funcionando con índices btree.
+//
+// Tradeoff conocido: si el operador decide migrar tenants entre sí o
+// cambiar un tenant_id, los blind indexes existentes quedan obsoletos
+// y deben re-poblarse. En la práctica tenant_id es inmutable.
+func (c *CryptoService) BlindIndex(tenantID domain.TenantID, value string) string {
 	mac := hmac.New(sha256.New, c.salt)
+	// Usar un separador que no pueda aparecer en UUIDs (formato canónico
+	// con guiones) para evitar colisiones accidentales tipo:
+	//   tenantA: "a-b" + ":" + "c" == tenantA: "a" + ":" + "b-c"
+	mac.Write([]byte(tenantID.String()))
+	mac.Write([]byte{':'})
 	mac.Write([]byte(value))
 	return hex.EncodeToString(mac.Sum(nil))
 }
