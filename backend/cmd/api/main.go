@@ -176,6 +176,12 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
+	// Defensa contra DoS por bodies JSON enormes. Limita el tamaño de
+	// CUALQUIER request a 2 MiB. Los handlers deben usar decodeJSONBody
+	// del paquete inboundHTTP para traducir el error a 413 Request
+	// Entity Too Large. Si no, json.NewDecoder devolverá un error
+	// genérico que se traduce a 400 Bad Request.
+	r.Use(inboundHTTP.MaxBytesMiddleware(inboundHTTP.DefaultMaxRequestBodyBytes))
 
 	// CORS Config
 	r.Use(cors.Handler(cors.Options{
