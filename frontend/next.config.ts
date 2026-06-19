@@ -39,8 +39,14 @@ const nextConfig: NextConfig = {
             value: "on",
           },
           {
+            // HSTS: max-age de 1 año (31536000s) es el valor recomendado
+            // por Mozilla Observatory y suficiente para que los
+            // navegadores mantengan HTTPS-only durante una release cycle.
+            // includeSubDomains aplica la política a todos los subdominios.
+            // preload permite enviar el dominio a la lista de HSTS preload
+            // de los navegadores (compromiso de 1 año mínimo al enviar).
             key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload",
+            value: "max-age=31536000; includeSubDomains; preload",
           },
           {
             key: "X-Content-Type-Options",
@@ -51,8 +57,20 @@ const nextConfig: NextConfig = {
             value: "DENY",
           },
           {
+            // Referrer-Policy estricto: solo envía el origen (sin path)
+            // en cross-origin requests, y el origen completo en
+            // same-origin. Nunca la URL completa a terceros.
+            // Cumple con la guía de Mozilla Observatory.
             key: "Referrer-Policy",
-            value: "origin-when-cross-origin",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            // Cross-Origin-Resource-Policy: indica a los navegadores
+            // que estos recursos solo deben cargarse desde el mismo
+            // origen. Previene ataques de side-channel (Spectre) y
+            // filtraciones cross-origin via <img>, <script>, <iframe>.
+            key: "Cross-Origin-Resource-Policy",
+            value: "same-origin",
           },
           {
             // Permissions-Policy: deshabilita APIs sensibles que la
