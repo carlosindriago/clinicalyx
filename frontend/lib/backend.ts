@@ -99,9 +99,68 @@ export function parseTenantIdFromAccessToken(
 
     const payload = JSON.parse(
       Buffer.from(payloadPart, "base64url").toString("utf-8")
-    ) as { tenant_id?: unknown };
+    ) as { tenant_id?: unknown; role?: unknown };
 
     return typeof payload.tenant_id === "string" ? payload.tenant_id : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Roles canónicos del sistema. Mantener sincronizado con
+ * backend/internal/core/domain/user.go (UserRole).
+ *
+ * IMPORTANTE: la fuente de verdad del rol siempre es el backend (vía
+ * JWT firmado). Este enum se usa solo para tipado y para hacer
+ * narrowing al decodificar el JWT. NO se debe usar para autorizar:
+ * la autorización siempre la hace el backend en sus handlers.
+ */
+export type AppRole = "SUPERADMIN" | "DOCTOR" | "NURSE" | "RECEPTIONIST";
+
+/**
+ * Decodifica un JWT y devuelve el rol del usuario.
+ *
+ * Mismas garantías que parseTenantIdFromAccessToken: NO verifica firma,
+ * solo decodifica. Para autorización real, el backend re-verifica el rol
+ * en cada endpoint protegido (RequireRole middleware).
+ *
+ * Devuelve null si el token no contiene un rol válido. Esto permite al
+ * caller hacer fallback explícito (e.g. UI guest) sin que un JWT
+ * manipulado pueda escalar privilegios: como no verificamos firma, sí
+ * puede inyectar un rol en el payload, pero el backend SIEMPRE rechaza
+ * la operación porque su verificación de firma falla.
+ */
+export function parseRoleFromAccessToken(
+  token: string | undefined
+): AppRole | null {
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) {
+      return null;
+    }
+
+    const payload = JSON.parse(
+      Buffer.from(payloadPart, "base64url").toString("utf-8")
+    ) as { role?: unknown };
+
+    if (typeof payload.role !== "string") {
+      return null;
+    }
+
+    const validRoles: AppRole[] = [
+      "SUPERADMIN",
+      "DOCTOR",
+      "NURSE",
+      "RECEPTIONIST",
+    ];
+    return validRoles.includes(payload.role as AppRole)
+      ? (payload.role as AppRole)
+      : null;
   } catch {
     return null;
   }
