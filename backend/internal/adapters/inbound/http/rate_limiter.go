@@ -250,9 +250,43 @@ func NewLoginRateLimiter(ctx context.Context, trusted *trustedProxies) func(http
 	return RateLimitMiddleware(limiter, trusted)
 }
 
-// NewDemoRateLimiter crea un middleware que limita la creación de demos a 1 petición por hora por IP.
+// NewDemoRateLimiter crea un middleware que limita la creación de sandboxes
+// de demo a 3 peticiones por hora por IP (defensa agresiva contra DoS para
+// servidores de bajo presupuesto). burst=3 permite los 3 intentos en
+// rafaga pero el rate de relleno es 1 cada 20 minutos.
+//
+// Usa ExtractIP con la lista de proxies confiables para no permitir que
+// un atacante bypasee el rate limit enviando un X-Forwarded-For
+// falsificado desde una IP que no es trusted proxy.
 func NewDemoRateLimiter(ctx context.Context, trusted *trustedProxies) func(http.Handler) http.Handler {
-	limit := rate.Every(1 * time.Hour)
-	limiter := NewIPRateLimiter(ctx, limit, 1)
-	return RateLimitMiddleware(limiter, trusted)
+	// 3 peticiones por hora = 1 cada 20 minutos
+	limit := rate.Every(20 * time.Minute)
+	limiter := NewIPRateLimiter(ctx, limit, 3)
+	return DemoRateLimitMiddleware(limiter)
+}
+
+// DemoRateLimitMiddleware es una variante del RateLimitMiddleware que
+// devuelve un mensaje claro cuando se excede el límite de demos: el
+// cliente del portfolio mode puede mostrar el mensaje exacto al usuario.
+func DemoRateLimitMiddleware(limiter *IPRateLimiter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Usar el mismo ExtractIP que el resto: respeta TRUSTED_PROXIES_IPS.
+			ip := ExtractIP(r, nil)
+			l := limiter.getLimiter(ip)
+
+			if !l.Allow() {
+				w.Header().Set("Content-Type", "application/json")
+				// Cabecera estándar de rate limit.
+				w.Header().Set("Retry-After", "3600")
+				w.WriteHeader(http.StatusTooManyRequests)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": "Has alcanzado el límite de demostraciones para tu IP. Por seguridad, el sandbox se puede crear 3 veces por hora. Inténtalo de nuevo más tarde.",
+				})
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

@@ -1,21 +1,16 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
   Eye,
   EyeOff,
-  Headphones,
   HeartPulse,
   Loader2,
   Lock,
   Mail,
-  Play,
-  ShieldCheck,
-  Stethoscope,
-  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,155 +23,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-
-type DemoCredentials = {
-  admin_email: string;
-  doctor_email: string;
-  receptionist_email: string;
-  password: string;
-};
-
-type DemoRole = "doctor" | "receptionist" | "admin";
-
-type DemoSandboxState = {
-  tenantId: string;
-  password: string;
-  currentRole: DemoRole;
-  credentials: DemoCredentials;
-};
-
-const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
-
-type RoleCardConfig = {
-  key: DemoRole;
-  label: string;
-  description: string;
-  Icon: typeof Stethoscope;
-  iconClass: string;
-  ringClass: string;
-  hoverClass: string;
-};
-
-const ROLE_CARDS: RoleCardConfig[] = [
-  {
-    key: "doctor",
-    label: "Doctor",
-    description: "Vista clínica completa",
-    Icon: Stethoscope,
-    iconClass: "text-teal-700 dark:text-teal-300",
-    ringClass: "bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/40 dark:to-emerald-900/40",
-    hoverClass: "hover:border-teal-300/70 hover:bg-teal-50/50 dark:hover:border-teal-400/30 dark:hover:bg-teal-950/30",
-  },
-  {
-    key: "receptionist",
-    label: "Recepcionista",
-    description: "Gestión de pacientes y agenda",
-    Icon: Headphones,
-    iconClass: "text-sky-700 dark:text-sky-300",
-    ringClass: "bg-gradient-to-br from-sky-100 to-cyan-100 dark:from-sky-900/40 dark:to-cyan-900/40",
-    hoverClass: "hover:border-sky-300/70 hover:bg-sky-50/50 dark:hover:border-sky-400/30 dark:hover:bg-sky-950/30",
-  },
-  {
-    key: "admin",
-    label: "Superadmin",
-    description: "Operación y configuración",
-    Icon: UserCog,
-    iconClass: "text-violet-700 dark:text-violet-300",
-    ringClass: "bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-900/40 dark:to-fuchsia-900/40",
-    hoverClass: "hover:border-violet-300/70 hover:bg-violet-50/50 dark:hover:border-violet-400/30 dark:hover:bg-violet-950/30",
-  },
-];
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // Estado del formulario principal
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  // Estado del sandbox (sesión efímera del demo)
-  const [isDemoEnabled, setIsDemoEnabled] = useState(false);
-  const [demoSandbox, setDemoSandbox] = useState<DemoSandboxState | null>(null);
-  const [quickLoginRole, setQuickLoginRole] = useState<DemoRole | null>(null);
-
-  // Estado de UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadDemoRuntimeConfig = async () => {
-      try {
-        const response = await fetch("/api/demo/start", {
-          method: "GET",
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const data: { enabled?: boolean } = await response.json();
-        setIsDemoEnabled(data.enabled === true);
-      } catch {
-        setIsDemoEnabled(false);
-      }
-    };
-
-    void loadDemoRuntimeConfig();
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const storedSandbox = window.localStorage.getItem(DEMO_STORAGE_KEY);
-        if (!storedSandbox) {
-          return;
-        }
-
-        const parsed = JSON.parse(storedSandbox) as DemoSandboxState;
-        if (!parsed.tenantId || !parsed.credentials) {
-          return;
-        }
-
-        setDemoSandbox(parsed);
-      } catch {
-        setDemoSandbox(null);
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  const emailForRole = (role: DemoRole) => {
-    if (!demoSandbox) {
-      return "";
-    }
-
-    switch (role) {
-      case "doctor":
-        return demoSandbox.credentials.doctor_email;
-      case "receptionist":
-        return demoSandbox.credentials.receptionist_email;
-      case "admin":
-        return demoSandbox.credentials.admin_email;
-    }
-  };
-
-  const persistCurrentRole = (role: DemoRole) => {
-    if (!demoSandbox) {
-      return;
-    }
-
-    const updatedSandbox: DemoSandboxState = {
-      ...demoSandbox,
-      currentRole: role,
-    };
-
-    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(updatedSandbox));
-    setDemoSandbox(updatedSandbox);
-  };
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -211,49 +66,6 @@ export default function LoginPage() {
       setError(message);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleQuickDemoLogin = async (role: DemoRole) => {
-    if (!demoSandbox) {
-      return;
-    }
-
-    setQuickLoginRole(role);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Tenant-ID": demoSandbox.tenantId,
-        },
-        body: JSON.stringify({
-          tenant_id: demoSandbox.tenantId,
-          email: emailForRole(role),
-          password: demoSandbox.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "No se pudo iniciar sesión en el sandbox.");
-      }
-
-      persistCurrentRole(role);
-      router.push("/dashboard");
-      router.refresh();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "No se pudo iniciar sesión en el sandbox.";
-
-      setError(message);
-    } finally {
-      setQuickLoginRole(null);
     }
   };
 
@@ -403,119 +215,6 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
-
-              {/* Sandbox Demo: cards con iconos de marca */}
-              {demoSandbox ? (
-                <div className="mt-2 space-y-3 rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50/60 to-emerald-50/40 p-3.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.85)] dark:border-teal-900/40 dark:from-teal-950/30 dark:to-emerald-950/20">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck
-                      className="size-4 text-teal-600 dark:text-teal-300"
-                      aria-hidden="true"
-                    />
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700 dark:text-teal-300">
-                      Sandbox Activo
-                    </p>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Entra con un usuario preconfigurado para explorar el
-                    producto.
-                  </p>
-
-                  <div className="grid gap-2">
-                    {ROLE_CARDS.map((role) => {
-                      const {
-                        key,
-                        label,
-                        description,
-                        Icon,
-                        iconClass,
-                        ringClass,
-                        hoverClass,
-                      } = role;
-                      const isLogging = quickLoginRole === key;
-                      const isOther = quickLoginRole !== null && !isLogging;
-
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => handleQuickDemoLogin(key)}
-                          disabled={quickLoginRole !== null}
-                          className={cn(
-                            "group/role flex h-auto items-center gap-3 rounded-2xl border border-white/70 bg-white/85 px-3 py-2.5 text-left text-sm shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),4px_4px_12px_rgba(122,176,190,0.08)] transition-all duration-200",
-                            hoverClass,
-                            isOther && "opacity-50"
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "flex size-10 shrink-0 items-center justify-center rounded-2xl shadow-[inset_1px_1px_0_rgba(255,255,255,0.95)] transition-transform group-hover/role:scale-105",
-                              ringClass
-                            )}
-                            aria-hidden="true"
-                          >
-                            <Icon className={cn("size-5", iconClass)} />
-                          </span>
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                              {label}
-                            </span>
-                            <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">
-                              {description}
-                            </span>
-                          </span>
-                          {isLogging ? (
-                            <Loader2
-                              className="size-4 shrink-0 animate-spin text-teal-600 dark:text-teal-300"
-                              aria-hidden="true"
-                            />
-                          ) : (
-                            <ArrowRight
-                              className="size-4 shrink-0 text-slate-300 transition-transform group-hover/role:translate-x-1 group-hover/role:text-teal-600 dark:text-slate-500 dark:group-hover/role:text-teal-300"
-                              aria-hidden="true"
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {quickLoginRole ? (
-                    <p className="text-[11px] text-teal-700 dark:text-teal-300">
-                      Conectando al sandbox…
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {isDemoEnabled ? (
-                <>
-                  <div
-                    role="separator"
-                    className="relative my-5 flex items-center justify-center"
-                  >
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-slate-200/70 dark:border-slate-700/60" />
-                    </div>
-                    <span className="relative z-10 bg-white px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:bg-slate-900 dark:text-slate-500">
-                      o prueba el entorno
-                    </span>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.push("/demo/loading")}
-                    className="group/demo h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-teal-200/60 bg-white/80 font-semibold text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95)] transition-all duration-300 hover:border-teal-300 hover:bg-teal-50/60 hover:text-teal-800 hover:shadow-[0_8px_20px_rgba(20,184,166,0.18)] dark:border-teal-900/40 dark:bg-slate-900/40 dark:text-teal-300 dark:hover:border-teal-700/60 dark:hover:bg-teal-950/30"
-                  >
-                    <Play
-                      className="size-3.5 fill-teal-600 text-teal-600 transition-transform group-hover/demo:scale-110 dark:fill-teal-300 dark:text-teal-300"
-                      aria-hidden="true"
-                    />
-                    <span>Probar Demo Interactiva</span>
-                  </Button>
-                </>
-              ) : null}
             </form>
           </CardContent>
 

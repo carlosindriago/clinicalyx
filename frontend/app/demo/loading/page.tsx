@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
   AlertCircle,
@@ -100,9 +100,29 @@ const ROLE_CARD_STYLES: Record<
   },
 };
 
-export default function DemoLoadingPage() {
+function parseRoleParam(value: string | null): DemoRole {
+  if (value === "receptionist" || value === "admin" || value === "doctor") {
+    return value;
+  }
+  return "doctor";
+}
+
+function emailForRole(credentials: DemoCredentials, role: DemoRole) {
+  switch (role) {
+    case "doctor":
+      return credentials.doctor_email;
+    case "receptionist":
+      return credentials.receptionist_email;
+    case "admin":
+      return credentials.admin_email;
+  }
+}
+
+function DemoLoadingPageInner() {
   const router = useRouter();
-  const hasFetched = useRef<boolean>(false);
+  const searchParams = useSearchParams();
+  const requestedRole = parseRoleParam(searchParams.get("role"));
+  const hasAutoEntered = useRef<boolean>(false);
 
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -112,6 +132,7 @@ export default function DemoLoadingPage() {
   const [switchingRole, setSwitchingRole] = useState<DemoRole | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // 1. Rotación animada de los steps de carga (cosmético).
   useEffect(() => {
     if (!isLoading) {
       return;
@@ -123,6 +144,11 @@ export default function DemoLoadingPage() {
 
     return () => window.clearInterval(interval);
   }, [isLoading]);
+
+  // 2. Auto-start al montar: dispara el fetch al proxy interno.
+  // Solo se ejecuta una vez gracias al ref `hasFetched` (evita dobles
+  // llamadas en StrictMode/dev).
+  const hasFetched = useRef<boolean>(false);
 
   useEffect(() => {
     if (hasFetched.current) {
@@ -145,7 +171,7 @@ export default function DemoLoadingPage() {
         if (!response.ok) {
           throw new Error(
             ("error" in data ? data.error : null) ||
-              "Error al inicializar el entorno de demostracion temporal."
+              "Error al inicializar el entorno de demostración temporal."
           );
         }
 
@@ -155,7 +181,7 @@ export default function DemoLoadingPage() {
         const message =
           err instanceof Error
             ? err.message
-            : "No se pudo establecer conexion con el servidor.";
+            : "No se pudo establecer conexión con el servidor.";
         setError(message);
         setIsLoading(false);
       }
@@ -164,20 +190,93 @@ export default function DemoLoadingPage() {
     void startDemoEnvironment();
   }, []);
 
+  // 3. Cuando se obtiene el sandbox, si el URL tenía ?role= y difiere
+  // del rol por defecto (Doctor, que es el que el backend autentica
+  // automáticamente), hace un auto-login con el rol solicitado.
+  // Una sola ejecución gracias a `hasAutoEntered`.
   useEffect(() => {
-    if (!demoData) {
+    if (!demoData || hasAutoEntered.current) {
       return;
     }
+    hasAutoEntered.current = true;
 
+    persistCurrentRoleState(demoData, requestedRole);
+
+    if (requestedRole === "doctor") {
+      // El backend ya autenticó al Doctor vía cookie. Solo redirigir.
+      router.push("/dashboard");
+      router.refresh();
+    } else {
+      // Para Receptionist/Admin: logout + login con el rol solicitado.
+      void autoEnterAsRole(demoData, requestedRole);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoData, requestedRole]);
+
+  function persistCurrentRoleState(data: DemoResponse, role: DemoRole) {
     const sandboxState: DemoSandboxState = {
-      tenantId: demoData.tenant_id,
-      password: demoData.credentials.password,
-      currentRole: "doctor",
-      credentials: demoData.credentials,
+      tenantId: data.tenant_id,
+      password: data.credentials.password,
+      currentRole: role,
+      credentials: data.credentials,
     };
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        DEMO_STORAGE_KEY,
+        JSON.stringify(sandboxState)
+      );
+    }
+  }
 
-    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(sandboxState));
-  }, [demoData]);
+  async function autoEnterAsRole(data: DemoResponse, role: DemoRole) {
+    setSwitchingRole(role);
+    setActionError(null);
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": data.tenant_id,
+        },
+      });
+
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": data.tenant_id,
+        },
+        body: JSON.stringify({
+          tenant_id: data.tenant_id,
+          email: emailForRole(data.credentials, role),
+          password: data.credentials.password,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: unknown;
+      };
+
+      if (!response.ok) {
+        const message =
+          payload && typeof payload.error === "string"
+            ? payload.error
+            : "No se pudo cambiar al usuario seleccionado.";
+        throw new Error(message);
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error: unknown) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cambiar al usuario del sandbox."
+      );
+      setSwitchingRole(null);
+    }
+  }
 
   const handleCopy = (text: string, fieldKey: string) => {
     void navigator.clipboard.writeText(text);
@@ -185,32 +284,6 @@ export default function DemoLoadingPage() {
     window.setTimeout(() => {
       setCopiedField(null);
     }, 2000);
-  };
-
-  const emailForRole = (credentials: DemoCredentials, role: DemoRole) => {
-    switch (role) {
-      case "doctor":
-        return credentials.doctor_email;
-      case "receptionist":
-        return credentials.receptionist_email;
-      case "admin":
-        return credentials.admin_email;
-    }
-  };
-
-  const persistCurrentRole = (role: DemoRole) => {
-    if (!demoData) {
-      return;
-    }
-
-    const sandboxState: DemoSandboxState = {
-      tenantId: demoData.tenant_id,
-      password: demoData.credentials.password,
-      currentRole: role,
-      credentials: demoData.credentials,
-    };
-
-    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(sandboxState));
   };
 
   const handleEnterAsRole = async (role: DemoRole) => {
@@ -244,7 +317,9 @@ export default function DemoLoadingPage() {
           }),
         });
 
-        const payload = await response.json().catch(() => ({}));
+        const payload = (await response.json().catch(() => ({}))) as {
+          error?: unknown;
+        };
 
         if (!response.ok) {
           const message =
@@ -255,7 +330,7 @@ export default function DemoLoadingPage() {
         }
       }
 
-      persistCurrentRole(role);
+      persistCurrentRoleState(demoData, role);
       router.push("/dashboard");
       router.refresh();
     } catch (error: unknown) {
@@ -269,35 +344,43 @@ export default function DemoLoadingPage() {
     }
   };
 
+  // Cuando el ?role= es diferente de doctor y el auto-login está en
+  // progreso, no mostramos la pantalla de credenciales: redirigimos
+  // al dashboard con un mini loading. Esto da feedback visual inmediato.
+  const isAutoEntering =
+    demoData !== null &&
+    requestedRole !== "doctor" &&
+    switchingRole === requestedRole;
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 font-sans text-slate-700">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 font-sans text-slate-700 dark:bg-slate-950">
       <div className="absolute inset-0" aria-hidden="true">
-        <div className="absolute left-[8%] top-14 h-64 w-64 rounded-full bg-teal-100/80 blur-3xl" />
-        <div className="absolute right-[10%] top-24 h-72 w-72 rounded-full bg-sky-100/70 blur-3xl" />
-        <div className="absolute bottom-8 left-1/3 h-80 w-80 rounded-full bg-white blur-3xl" />
+        <div className="absolute left-[8%] top-14 h-64 w-64 rounded-full bg-teal-100/80 blur-3xl dark:bg-teal-700/15" />
+        <div className="absolute right-[10%] top-24 h-72 w-72 rounded-full bg-sky-100/70 blur-3xl dark:bg-sky-700/15" />
+        <div className="absolute bottom-8 left-1/3 h-80 w-80 rounded-full bg-white blur-3xl dark:bg-cyan-900/10" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_65%_55%_at_50%_50%,#000_68%,transparent_100%)]" />
       </div>
 
       <div className="relative z-10 w-full max-w-[720px] p-2">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16)]">
-            <Activity className="size-7 stroke-[2.4]" />
+          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16),inset_1px_1px_0_rgba(255,255,255,0.85)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-300">
+            <Activity className="size-7 stroke-[2.4]" aria-hidden="true" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-800">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-slate-50">
             Clinicalyx
           </h1>
-          <p className="mt-1 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-slate-500">
-            Medical Suite
+          <p className="mt-1 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
+            Suite Médica
           </p>
-          <p className="mt-3 text-sm font-medium text-slate-500">
-            Entorno demo efimero, seguro y aislado para explorar la suite medica.
+          <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+            Entorno demo efímero, seguro y aislado para explorar la suite
+            médica.
           </p>
         </div>
 
         {isLoading ? (
           <Card className="rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] animate-in fade-in duration-500 dark:border-white/8 dark:bg-slate-900/95">
             <CardContent className="flex flex-col items-center justify-center space-y-7 px-6 py-12 text-center">
-              {/* Spinner con logo central: anillos orbitales + badge Soft-UI */}
               <div className="relative flex items-center justify-center">
                 <div
                   className="absolute size-28 animate-spin rounded-full border-2 border-transparent border-t-teal-500 border-r-teal-400/60 duration-1000"
@@ -333,14 +416,13 @@ export default function DemoLoadingPage() {
                 </div>
               </div>
 
-              {/* Barra de progreso indeterminada con gradiente animado */}
               <div
                 className="relative h-2 w-64 overflow-hidden rounded-full bg-slate-100 shadow-[inset_1px_1px_2px_rgba(15,23,42,0.08)] dark:bg-slate-800/60"
                 role="progressbar"
                 aria-label="Progreso de inicialización del sandbox"
               >
                 <div
-                  className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-[linear-gradient(90deg,transparent,#25cbc9,#1da2be,transparent)] shadow-[0_4px_12px_rgba(29,162,190,0.45)] animate-[demo-progress_1.6s_ease-in-out_infinite]"
+                  className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-[linear-gradient(90deg,transparent,#25cbc9,#1da2be,transparent)] shadow-[0_4px_12px_rgba(29,162,190,0.45)]"
                   style={{
                     animationName: "demo-progress",
                     animationDuration: "1.6s",
@@ -380,8 +462,23 @@ export default function DemoLoadingPage() {
           </Card>
         ) : null}
 
+        {/* Mini-loading mientras el auto-login para role no-doctor se ejecuta */}
+        {isAutoEntering ? (
+          <Card className="rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] dark:border-white/8 dark:bg-slate-900/95">
+            <CardContent className="flex flex-col items-center justify-center space-y-4 px-6 py-10 text-center">
+              <Loader2
+                className="size-8 animate-spin text-teal-600 dark:text-teal-300"
+                aria-hidden="true"
+              />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                Conectando como {ROLE_LABELS[requestedRole]}…
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {!isLoading && error ? (
-          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.03)] scale-in duration-300">
+          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] scale-in duration-300 dark:border-white/8 dark:bg-slate-900/95">
             <CardHeader className="pb-4 text-center">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[18px] border border-red-100 bg-red-50 text-red-500">
                 <AlertCircle className="size-6" />
@@ -390,17 +487,17 @@ export default function DemoLoadingPage() {
                 Fallo al inicializar la demo
               </CardTitle>
               <CardDescription className="mt-1 text-xs text-slate-500">
-                La solicitud de creacion del entorno fue rechazada o interrumpida.
+                La solicitud de creación del entorno fue rechazada o interrumpida.
               </CardDescription>
             </CardHeader>
             <CardContent className="pb-6 text-center">
-              <p className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium leading-relaxed text-red-600">
+              <p className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium leading-relaxed text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
                 {error.includes("Too many requests") || error.includes("429")
-                  ? "Limite de solicitudes excedido por seguridad IP. Espera 1 hora antes de intentarlo nuevamente."
+                  ? "Límite de solicitudes excedido por seguridad IP. Has alcanzado el máximo de 3 demostraciones por hora. Inténtalo de nuevo más tarde."
                   : error}
               </p>
             </CardContent>
-            <CardFooter className="flex justify-center border-t border-slate-100 pt-4">
+            <CardFooter className="flex justify-center border-t border-slate-100 pt-4 dark:border-slate-800">
               <Button
                 onClick={() => router.push("/login")}
                 className="h-12 cursor-pointer rounded-2xl bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-6 font-semibold text-white shadow-[0_14px_28px_rgba(29,162,190,0.18)] transition-all duration-300 hover:brightness-105"
@@ -411,35 +508,37 @@ export default function DemoLoadingPage() {
           </Card>
         ) : null}
 
-        {!isLoading && !error && demoData ? (
-          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.03)] fade-in zoom-in-95 duration-500">
+        {/* Solo mostramos la pantalla completa de credenciales si el URL
+            NO tenía ?role= (modo manual) o si el auto-login falló. */}
+        {!isLoading && !error && demoData && !isAutoEntering && requestedRole === "doctor" ? (
+          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] fade-in zoom-in-95 duration-500 dark:border-white/8 dark:bg-slate-900/95">
             <CardHeader className="pb-4 text-center">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#e7fffb,#d3faf3)] text-teal-600 shadow-[0_10px_24px_rgba(20,184,166,0.12)]">
                 <CheckCircle2 className="size-6" />
               </div>
               <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-800">
-                ¡Tu sandbox esta listo!
+                ¡Tu sandbox está listo!
               </CardTitle>
               <CardDescription className="text-sm text-slate-500">
-                Se genero un entorno clinico temporal, aislado y seguro para tus pruebas.
+                Se generó un entorno clínico temporal, aislado y seguro para tus pruebas.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/40 dark:text-slate-300">
                   <Building className="size-4 shrink-0 text-teal-600" />
                   <div className="min-w-0 flex-1">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500">
                       Demo Tenant
                     </p>
-                    <p className="mt-1 truncate font-mono text-[11px] text-slate-700">
+                    <p className="mt-1 truncate font-mono text-[11px] text-slate-700 dark:text-slate-200">
                       {demoData.tenant_id}
                     </p>
                   </div>
                   <button
                     onClick={() => handleCopy(demoData.tenant_id, "tenant")}
-                    className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
+                    className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-600 dark:hover:bg-slate-800"
                     title="Copiar tenant ID"
                   >
                     {copiedField === "tenant" ? (
@@ -450,20 +549,20 @@ export default function DemoLoadingPage() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/40 dark:text-slate-300">
                   <KeyRound className="size-4 shrink-0 text-teal-600" />
                   <div className="min-w-0 flex-1">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      Contrasena comun
+                      Contraseña común
                     </p>
-                    <p className="mt-1 font-mono text-[11px] text-slate-700">
+                    <p className="mt-1 font-mono text-[11px] text-slate-700 dark:text-slate-200">
                       {demoData.credentials.password}
                     </p>
                   </div>
                   <button
                     onClick={() => handleCopy(demoData.credentials.password, "password")}
-                    className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-600"
-                    title="Copiar contrasena"
+                    className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-600 dark:hover:bg-slate-800"
+                    title="Copiar contraseña"
                   >
                     {copiedField === "password" ? (
                       <Check className="size-3.5 text-teal-600" />
@@ -475,7 +574,7 @@ export default function DemoLoadingPage() {
               </div>
 
               {actionError ? (
-                <div className="rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-medium text-red-600">
+                <div className="rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-medium text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
                   {actionError}
                 </div>
               ) : null}
@@ -486,7 +585,7 @@ export default function DemoLoadingPage() {
                     Roles disponibles
                   </p>
                   <p className="mt-1 text-sm text-slate-500">
-                    Entra con cualquiera de los perfiles del entorno demo usando la misma contrasena.
+                    Entra con cualquiera de los perfiles del entorno demo usando la misma contraseña.
                   </p>
                 </div>
 
@@ -555,15 +654,17 @@ export default function DemoLoadingPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-medium leading-normal text-amber-700">
+              <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-medium leading-normal text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <span>
-                  Este sandbox tiene politicas de destruccion automatica. Toda la informacion sera purgada por el Grim Reaper en un periodo de 2 horas.
+                  Este sandbox tiene políticas de destrucción automática.
+                  Toda la información será purgada por el Grim Reaper en un
+                  periodo de 2 horas.
                 </span>
               </div>
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-3 border-t border-slate-100 pb-6 pt-4">
+            <CardFooter className="flex flex-col gap-3 border-t border-slate-100 pb-6 pt-4 dark:border-slate-800">
               <Button
                 onClick={() => handleEnterAsRole("doctor")}
                 disabled={switchingRole !== null}
@@ -583,5 +684,16 @@ export default function DemoLoadingPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+// Componente exportado con Suspense boundary requerido por Next.js 15+
+// para usar useSearchParams en client components. El fallback es la
+// pantalla vacía; en milisegundos se resuelve.
+export default function DemoLoadingPage() {
+  return (
+    <Suspense fallback={null}>
+      <DemoLoadingPageInner />
+    </Suspense>
   );
 }
