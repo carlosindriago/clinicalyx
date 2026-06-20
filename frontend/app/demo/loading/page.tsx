@@ -13,10 +13,8 @@ import {
   KeyRound,
   Loader2,
   ShieldCheck,
-  UserCheck,
 } from "lucide-react";
 
-import { RoleIllustration } from "@/components/role-illustration";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,21 +35,15 @@ interface DemoCredentials {
 interface DemoResponse {
   status: string;
   message: string;
+  role: string;
   tenant_id: string;
   // Los tokens de sesión (access_token, refresh_token) llegan
   // exclusivamente como cookies HttpOnly. NO se exponen en el body JSON
-  // para evitar robo vía XSS. Por eso no aparecen en este tipo.
+  // para evitar robo vía XSS.
   credentials: DemoCredentials;
 }
 
 type DemoRole = "doctor" | "receptionist" | "admin";
-
-type DemoSandboxState = {
-  tenantId: string;
-  password: string;
-  currentRole: DemoRole;
-  credentials: DemoCredentials;
-};
 
 const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
 
@@ -69,36 +61,8 @@ const LOADING_STEPS = [
   "Aplicando políticas de aislamiento por clínica (RLS)…",
   "Sembrando pacientes y antecedentes de prueba…",
   "Programando las próximas citas del día…",
-  "Emitiendo sesión efímera con tokens HttpOnly…",
+  "Emitiendo sesión con tokens HttpOnly seguros…",
 ];
-
-const ROLE_CARD_STYLES: Record<
-  DemoRole,
-  {
-    border: string;
-    badge: string;
-    button: string;
-    hint?: string;
-  }
-> = {
-  doctor: {
-    border: "border-teal-200 bg-teal-50/75",
-    badge: "bg-teal-100 text-teal-700",
-    button:
-      "bg-[linear-gradient(145deg,#25cbc9,#1da2be)] text-white shadow-[0_12px_24px_rgba(29,162,190,0.16)] hover:brightness-105",
-    hint: "Acceso inicial configurado",
-  },
-  receptionist: {
-    border: "border-sky-200 bg-sky-50/70",
-    badge: "bg-sky-100 text-sky-700",
-    button: "border-sky-200 bg-white text-sky-700 hover:bg-sky-50",
-  },
-  admin: {
-    border: "border-violet-200 bg-violet-50/70",
-    badge: "bg-violet-100 text-violet-700",
-    button: "border-violet-200 bg-white text-violet-700 hover:bg-violet-50",
-  },
-};
 
 function parseRoleParam(value: string | null): DemoRole {
   if (value === "receptionist" || value === "admin" || value === "doctor") {
@@ -107,64 +71,49 @@ function parseRoleParam(value: string | null): DemoRole {
   return "doctor";
 }
 
-function emailForRole(credentials: DemoCredentials, role: DemoRole) {
-  switch (role) {
-    case "doctor":
-      return credentials.doctor_email;
-    case "receptionist":
-      return credentials.receptionist_email;
-    case "admin":
-      return credentials.admin_email;
-  }
-}
-
 function DemoLoadingPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedRole = parseRoleParam(searchParams.get("role"));
-  const hasAutoEntered = useRef<boolean>(false);
+  const hasFetched = useRef<boolean>(false);
 
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [demoData, setDemoData] = useState<DemoResponse | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [switchingRole, setSwitchingRole] = useState<DemoRole | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
 
-  // 1. Rotación animada de los steps de carga (cosmético).
+  // 1. Rotación animada de los steps de carga.
   useEffect(() => {
     if (!isLoading) {
       return;
     }
-
     const interval = window.setInterval(() => {
       setStepIndex((prev) => (prev + 1) % LOADING_STEPS.length);
     }, 1200);
-
     return () => window.clearInterval(interval);
   }, [isLoading]);
 
-  // 2. Auto-start al montar: dispara el fetch al proxy interno.
-  // Solo se ejecuta una vez gracias al ref `hasFetched` (evita dobles
-  // llamadas en StrictMode/dev).
-  const hasFetched = useRef<boolean>(false);
-
+  // 2. Auto-start al montar. Un único POST al backend con ?role=.
+  // El backend crea el sandbox, autentica con el rol solicitado y
+  // emite las cookies HttpOnly. Sin doble round-trip.
   useEffect(() => {
     if (hasFetched.current) {
       return;
     }
-
     hasFetched.current = true;
 
     const startDemoEnvironment = async () => {
       try {
-        const response = await fetch("/api/demo/start", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await fetch(
+          `/api/demo/start?role=${encodeURIComponent(requestedRole)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         const data: DemoResponse | { error: string } = await response.json();
 
@@ -175,8 +124,32 @@ function DemoLoadingPageInner() {
           );
         }
 
-        setDemoData(data as DemoResponse);
+        const successData = data as DemoResponse;
+
+        // Persistir el estado del sandbox en localStorage para que el
+        // sidebar pueda mostrar el rol activo.
+        if (typeof window !== "undefined") {
+          const sandboxState = {
+            tenantId: successData.tenant_id,
+            password: successData.credentials.password,
+            currentRole: requestedRole,
+            credentials: successData.credentials,
+          };
+          window.localStorage.setItem(
+            DEMO_STORAGE_KEY,
+            JSON.stringify(sandboxState)
+          );
+        }
+
+        setDemoData(successData);
         setIsLoading(false);
+
+        // 3. Redirect automático al dashboard. El usuario ya está
+        // autenticado vía cookies HttpOnly.
+        window.setTimeout(() => {
+          router.push("/dashboard");
+          router.refresh();
+        }, 600);
       } catch (err: unknown) {
         const message =
           err instanceof Error
@@ -188,95 +161,7 @@ function DemoLoadingPageInner() {
     };
 
     void startDemoEnvironment();
-  }, []);
-
-  // 3. Cuando se obtiene el sandbox, si el URL tenía ?role= y difiere
-  // del rol por defecto (Doctor, que es el que el backend autentica
-  // automáticamente), hace un auto-login con el rol solicitado.
-  // Una sola ejecución gracias a `hasAutoEntered`.
-  useEffect(() => {
-    if (!demoData || hasAutoEntered.current) {
-      return;
-    }
-    hasAutoEntered.current = true;
-
-    persistCurrentRoleState(demoData, requestedRole);
-
-    if (requestedRole === "doctor") {
-      // El backend ya autenticó al Doctor vía cookie. Solo redirigir.
-      router.push("/dashboard");
-      router.refresh();
-    } else {
-      // Para Receptionist/Admin: logout + login con el rol solicitado.
-      void autoEnterAsRole(demoData, requestedRole);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demoData, requestedRole]);
-
-  function persistCurrentRoleState(data: DemoResponse, role: DemoRole) {
-    const sandboxState: DemoSandboxState = {
-      tenantId: data.tenant_id,
-      password: data.credentials.password,
-      currentRole: role,
-      credentials: data.credentials,
-    };
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(
-        DEMO_STORAGE_KEY,
-        JSON.stringify(sandboxState)
-      );
-    }
-  }
-
-  async function autoEnterAsRole(data: DemoResponse, role: DemoRole) {
-    setSwitchingRole(role);
-    setActionError(null);
-
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Tenant-ID": data.tenant_id,
-        },
-      });
-
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Tenant-ID": data.tenant_id,
-        },
-        body: JSON.stringify({
-          tenant_id: data.tenant_id,
-          email: emailForRole(data.credentials, role),
-          password: data.credentials.password,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: unknown;
-      };
-
-      if (!response.ok) {
-        const message =
-          payload && typeof payload.error === "string"
-            ? payload.error
-            : "No se pudo cambiar al usuario seleccionado.";
-        throw new Error(message);
-      }
-
-      router.push("/dashboard");
-      router.refresh();
-    } catch (error: unknown) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo cambiar al usuario del sandbox."
-      );
-      setSwitchingRole(null);
-    }
-  }
+  }, [requestedRole, router]);
 
   const handleCopy = (text: string, fieldKey: string) => {
     void navigator.clipboard.writeText(text);
@@ -285,72 +170,6 @@ function DemoLoadingPageInner() {
       setCopiedField(null);
     }, 2000);
   };
-
-  const handleEnterAsRole = async (role: DemoRole) => {
-    if (!demoData) {
-      return;
-    }
-
-    setActionError(null);
-    setSwitchingRole(role);
-
-    try {
-      if (role !== "doctor") {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Tenant-ID": demoData.tenant_id,
-          },
-        });
-
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Tenant-ID": demoData.tenant_id,
-          },
-          body: JSON.stringify({
-            tenant_id: demoData.tenant_id,
-            email: emailForRole(demoData.credentials, role),
-            password: demoData.credentials.password,
-          }),
-        });
-
-        const payload = (await response.json().catch(() => ({}))) as {
-          error?: unknown;
-        };
-
-        if (!response.ok) {
-          const message =
-            payload && typeof payload.error === "string"
-              ? payload.error
-              : "No se pudo cambiar al usuario seleccionado.";
-          throw new Error(message);
-        }
-      }
-
-      persistCurrentRoleState(demoData, role);
-      router.push("/dashboard");
-      router.refresh();
-    } catch (error: unknown) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo cambiar al usuario del sandbox."
-      );
-    } finally {
-      setSwitchingRole(null);
-    }
-  };
-
-  // Cuando el ?role= es diferente de doctor y el auto-login está en
-  // progreso, no mostramos la pantalla de credenciales: redirigimos
-  // al dashboard con un mini loading. Esto da feedback visual inmediato.
-  const isAutoEntering =
-    demoData !== null &&
-    requestedRole !== "doctor" &&
-    switchingRole === requestedRole;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 font-sans text-slate-700 dark:bg-slate-950">
@@ -361,7 +180,7 @@ function DemoLoadingPageInner() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_65%_55%_at_50%_50%,#000_68%,transparent_100%)]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[720px] p-2">
+      <div className="relative z-10 w-full max-w-[640px] p-2">
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16),inset_1px_1px_0_rgba(255,255,255,0.85)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-300">
             <Activity className="size-7 stroke-[2.4]" aria-hidden="true" />
@@ -373,8 +192,9 @@ function DemoLoadingPageInner() {
             Suite Médica
           </p>
           <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
-            Entorno demo efímero, seguro y aislado para explorar la suite
-            médica.
+            {isLoading
+              ? "Iniciando sesión como " + ROLE_LABELS[requestedRole] + "…"
+              : "Sesión iniciada. Redirigiendo al dashboard…"}
           </p>
         </div>
 
@@ -462,65 +282,18 @@ function DemoLoadingPageInner() {
           </Card>
         ) : null}
 
-        {/* Mini-loading mientras el auto-login para role no-doctor se ejecuta */}
-        {isAutoEntering ? (
-          <Card className="rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] dark:border-white/8 dark:bg-slate-900/95">
-            <CardContent className="flex flex-col items-center justify-center space-y-4 px-6 py-10 text-center">
-              <Loader2
-                className="size-8 animate-spin text-teal-600 dark:text-teal-300"
-                aria-hidden="true"
-              />
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                Conectando como {ROLE_LABELS[requestedRole]}…
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {!isLoading && error ? (
-          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] scale-in duration-300 dark:border-white/8 dark:bg-slate-900/95">
-            <CardHeader className="pb-4 text-center">
-              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[18px] border border-red-100 bg-red-50 text-red-500">
-                <AlertCircle className="size-6" />
-              </div>
-              <CardTitle className="text-lg font-bold text-slate-800">
-                Fallo al inicializar la demo
-              </CardTitle>
-              <CardDescription className="mt-1 text-xs text-slate-500">
-                La solicitud de creación del entorno fue rechazada o interrumpida.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-6 text-center">
-              <p className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium leading-relaxed text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
-                {error.includes("Too many requests") || error.includes("429")
-                  ? "Límite de solicitudes excedido por seguridad IP. Has alcanzado el máximo de 3 demostraciones por hora. Inténtalo de nuevo más tarde."
-                  : error}
-              </p>
-            </CardContent>
-            <CardFooter className="flex justify-center border-t border-slate-100 pt-4 dark:border-slate-800">
-              <Button
-                onClick={() => router.push("/login")}
-                className="h-12 cursor-pointer rounded-2xl bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-6 font-semibold text-white shadow-[0_14px_28px_rgba(29,162,190,0.18)] transition-all duration-300 hover:brightness-105"
-              >
-                Volver al login
-              </Button>
-            </CardFooter>
-          </Card>
-        ) : null}
-
-        {/* Solo mostramos la pantalla completa de credenciales si el URL
-            NO tenía ?role= (modo manual) o si el auto-login falló. */}
-        {!isLoading && !error && demoData && !isAutoEntering && requestedRole === "doctor" ? (
-          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] fade-in zoom-in-95 duration-500 dark:border-white/8 dark:bg-slate-900/95">
+        {/* Éxito breve: redirigiendo al dashboard */}
+        {!isLoading && !error && demoData ? (
+          <Card className="rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] animate-in fade-in zoom-in-95 duration-500 dark:border-white/8 dark:bg-slate-900/95">
             <CardHeader className="pb-4 text-center">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#e7fffb,#d3faf3)] text-teal-600 shadow-[0_10px_24px_rgba(20,184,166,0.12)]">
                 <CheckCircle2 className="size-6" />
               </div>
               <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-800">
-                ¡Tu sandbox está listo!
+                ¡Listo! Iniciando como {ROLE_LABELS[requestedRole]}
               </CardTitle>
               <CardDescription className="text-sm text-slate-500">
-                Se generó un entorno clínico temporal, aislado y seguro para tus pruebas.
+                {demoData.message}
               </CardDescription>
             </CardHeader>
 
@@ -573,87 +346,6 @@ function DemoLoadingPageInner() {
                 </div>
               </div>
 
-              {actionError ? (
-                <div className="rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-medium text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
-                  {actionError}
-                </div>
-              ) : null}
-
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Roles disponibles
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Entra con cualquiera de los perfiles del entorno demo usando la misma contraseña.
-                  </p>
-                </div>
-
-                <div className="grid gap-3">
-                  {(["doctor", "receptionist", "admin"] as const).map((role) => {
-                    const styles = ROLE_CARD_STYLES[role];
-                    const email = emailForRole(demoData.credentials, role);
-                    const isDoctor = role === "doctor";
-
-                    return (
-                      <div
-                        key={role}
-                        className={`group flex flex-col gap-3 rounded-[24px] border p-4 transition-all duration-300 sm:flex-row sm:items-center sm:justify-between ${styles.border}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <RoleIllustration role={role} compact className="size-12" />
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${styles.badge}`}
-                              >
-                                {ROLE_LABELS[role]}
-                              </span>
-                              {isDoctor ? (
-                                <span className="flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-teal-700">
-                                  <UserCheck className="size-3" />
-                                  {styles.hint}
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="font-mono text-xs font-medium text-slate-700">
-                              {email}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                          <button
-                            onClick={() => handleCopy(email, role)}
-                            className="rounded-2xl border border-white/70 bg-white/85 p-2 text-slate-400 transition-colors hover:text-slate-600"
-                            title={`Copiar correo de ${ROLE_LABELS[role]}`}
-                          >
-                            {copiedField === role ? (
-                              <Check className="size-4 text-teal-600" />
-                            ) : (
-                              <Copy className="size-4" />
-                            )}
-                          </button>
-                          <Button
-                            type="button"
-                            variant={role === "doctor" ? "default" : "outline"}
-                            onClick={() => handleEnterAsRole(role)}
-                            disabled={switchingRole !== null}
-                            className={`h-10 rounded-2xl px-4 text-xs font-semibold ${styles.button}`}
-                          >
-                            {switchingRole === role ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              "Entrar"
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-medium leading-normal text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <span>
@@ -666,18 +358,45 @@ function DemoLoadingPageInner() {
 
             <CardFooter className="flex flex-col gap-3 border-t border-slate-100 pb-6 pt-4 dark:border-slate-800">
               <Button
-                onClick={() => handleEnterAsRole("doctor")}
-                disabled={switchingRole !== null}
+                onClick={() => {
+                  router.push("/dashboard");
+                  router.refresh();
+                }}
                 className="group flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(145deg,#25cbc9,#1da2be)] font-bold text-white shadow-[0_14px_28px_rgba(29,162,190,0.18)] transition-all duration-300 hover:brightness-105"
               >
-                {switchingRole === "doctor" ? (
-                  <Loader2 className="size-4 animate-spin text-white" />
-                ) : (
-                  <>
-                    <span>Entrar al sistema</span>
-                    <ArrowRight className="size-4 text-white transition-transform group-hover:translate-x-1" />
-                  </>
-                )}
+                <span>Entrar al sistema</span>
+                <ArrowRight className="size-4 text-white transition-transform group-hover:translate-x-1" />
+              </Button>
+            </CardFooter>
+          </Card>
+        ) : null}
+
+        {!isLoading && error ? (
+          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] scale-in duration-300 dark:border-white/8 dark:bg-slate-900/95">
+            <CardHeader className="pb-4 text-center">
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[18px] border border-red-100 bg-red-50 text-red-500">
+                <AlertCircle className="size-6" />
+              </div>
+              <CardTitle className="text-lg font-bold text-slate-800">
+                Fallo al inicializar la demo
+              </CardTitle>
+              <CardDescription className="mt-1 text-xs text-slate-500">
+                La solicitud de creación del entorno fue rechazada o interrumpida.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-6 text-center">
+              <p className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium leading-relaxed text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
+                {error.includes("Too many requests") || error.includes("429")
+                  ? "Límite de solicitudes excedido por seguridad IP. Has alcanzado el máximo de 3 demostraciones por hora. Inténtalo de nuevo más tarde."
+                  : error}
+              </p>
+            </CardContent>
+            <CardFooter className="flex justify-center border-t border-slate-100 pt-4 dark:border-slate-800">
+              <Button
+                onClick={() => router.push("/login")}
+                className="h-12 cursor-pointer rounded-2xl bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-6 font-semibold text-white shadow-[0_14px_28px_rgba(29,162,190,0.18)] transition-all duration-300 hover:brightness-105"
+              >
+                Volver al login
               </Button>
             </CardFooter>
           </Card>
@@ -687,9 +406,8 @@ function DemoLoadingPageInner() {
   );
 }
 
-// Componente exportado con Suspense boundary requerido por Next.js 15+
-// para usar useSearchParams en client components. El fallback es la
-// pantalla vacía; en milisegundos se resuelve.
+// Suspense boundary requerido por Next.js 15+ para useSearchParams
+// en client components. El fallback es null (se resuelve en milisegundos).
 export default function DemoLoadingPage() {
   return (
     <Suspense fallback={null}>
