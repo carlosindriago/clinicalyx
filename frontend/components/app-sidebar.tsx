@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   Check,
@@ -112,7 +112,6 @@ export function Sidebar({
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [demoSandbox, setDemoSandbox] = useState<DemoSandboxState | null>(null);
   const [switchingRole, setSwitchingRole] = useState<DemoRole | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -154,98 +153,100 @@ export function Sidebar({
     }
   };
 
-  const persistCurrentRole = (role: DemoRole) => {
-    if (!demoSandbox) {
-      return;
-    }
-
-    const updatedSandbox: DemoSandboxState = {
-      ...demoSandbox,
-      currentRole: role,
-    };
-
-    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(updatedSandbox));
-    setDemoSandbox(updatedSandbox);
-  };
-
   const handleLogout = async () => {
     setIsLoggingOut(true);
     closeMobileMenu();
 
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: demoSandbox
-          ? {
-              "Content-Type": "application/json",
-              "X-Tenant-ID": demoSandbox.tenantId,
-            }
-          : undefined,
-      });
+      // Logout simple: limpiamos el sandbox persistido (si existe)
+      // y navegamos al login. No llamamos al endpoint del backend
+      // porque las cookies HttpOnly se invalidan al cambiar de
+      // sesión (el siguiente request no las lleva si expiraron o
+      // si el usuario navega manualmente).
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(DEMO_STORAGE_KEY);
+      }
+      setDemoSandbox(null);
     } finally {
-      router.push("/login");
-      router.refresh();
-      setIsLoggingOut(false);
+      window.location.replace("/login");
     }
   };
 
   const handleSwitchRole = async (role: DemoRole) => {
-    if (!demoSandbox) {
-      return;
-    }
+    // Para el flujo del portfolio mode, el cambio de rol ya no usa
+    // el sandbox persistido en localStorage. Llamamos directamente
+    // al endpoint optimizado /api/demo/start?role=X, que crea un
+    // sandbox NUEVO con el rol solicitado, autentica vía cookies
+    // HttpOnly, y devuelve un JSON con las credenciales. La sesión
+    // anterior queda invalidada.
+    //
+    // Esto elimina varios puntos de fallo del flujo anterior:
+    //   - El sandbox persistido podía haber expirado (2h) o haber
+    //     sido purgado por el Grim Reaper.
+    //   - El doble round-trip logout + login podía fallar en uno de
+    //     los dos pasos.
+    //   - El header X-Tenant-ID del cliente ya no se reenvía
+    //     (eliminado en la Fase 2 por seguridad).
+    //
+    // Después del POST exitoso, window.location.replace fuerza una
+    // recarga absoluta del navegador que limpia el Client Router
+    // Cache de Next.js y el Server Component se re-fetcheá con el
+    // nuevo rol extraído del JWT firmado.
 
-    if (demoSandbox.currentRole === role) {
-      closeMobileMenu();
-      router.push("/dashboard");
-      router.refresh();
+    if (role === "doctor" || role === "receptionist" || role === "admin") {
+      // ok
+    } else {
       return;
     }
 
     setSwitchingRole(role);
+    closeMobileMenu();
 
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Tenant-ID": demoSandbox.tenantId,
-        },
-      });
-
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Tenant-ID": demoSandbox.tenantId,
-        },
-        body: JSON.stringify({
-          tenant_id: demoSandbox.tenantId,
-          email: emailForRole(role),
-          password: demoSandbox.password,
-        }),
-      });
+      const response = await fetch(
+        `/api/demo/start?role=${encodeURIComponent(role)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("No se pudo cambiar el usuario del sandbox.");
+        // Caso especial: 429 (rate limit excedido). El proxy ya
+        // devuelve el mensaje en español, lo mostramos tal cual.
+        const payload = (await response.json().catch(() => ({}))) as {
+          error?: unknown;
+        };
+        const errorMessage =
+          payload && typeof payload.error === "string"
+            ? payload.error
+            : "No se pudo cambiar de rol en el sandbox.";
+        throw new Error(errorMessage);
       }
 
-      persistCurrentRole(role);
-      closeMobileMenu();
-      // Recarga absoluta de la página para garantizar que:
-      // 1. Las cookies HttpOnly nuevas (set por /api/auth/login) se
-      //    propaguen correctamente al siguiente request.
-      // 2. El dashboard Server Component se re-fetcheé con el nuevo
-      //    rol (extraído del JWT en el cookie) — router.push/router.refresh
-      //    no garantiza esto cuando cambia el subject del JWT.
-      // 3. Se limpie el Client Router Cache de Next.js.
-      // Se usa .replace() (método, no asignación) para satisfacer la
-      // regla react-hooks/immutability de eslint-config-next, y para
-      // reemplazar la entrada del historial (back button no devuelve
-      // a la sesión anterior, lo cual es deseable tras cambio de rol).
+      // El backend emite nuevas cookies HttpOnly (access_token +
+      // refresh_token) para el rol solicitado. NO necesitamos
+      // persistir nada en localStorage aquí porque el sandbox es
+      // nuevo: si el usuario hace otro cambio de rol, el flujo se
+      // repite y crea un sandbox fresco.
       window.location.replace("/dashboard");
-    } catch {
-      closeMobileMenu();
-      window.location.replace("/login");
+    } catch (error: unknown) {
+      // En caso de error, limpiamos el sandbox persistido y
+      // volvemos al login con un mensaje de error si está disponible.
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(DEMO_STORAGE_KEY);
+      }
+      setDemoSandbox(null);
+      const errorMessage =
+        error instanceof Error ? error.message : "Error al cambiar de rol.";
+      // Codificamos el mensaje en el query string para mostrarlo
+      // en /login. Usamos encodeURIComponent para caracteres
+      // especiales.
+      window.location.replace(
+        `/login?error=${encodeURIComponent(errorMessage)}`
+      );
     } finally {
       setSwitchingRole(null);
     }
