@@ -244,12 +244,17 @@ export function Sidebar({
 
       persistCurrentRole(role);
       closeMobileMenu();
-      router.push("/dashboard");
-      router.refresh();
+      // Recarga absoluta de la página para garantizar que:
+      // 1. Las cookies HttpOnly nuevas (set por /api/auth/login) se
+      //    propaguen correctamente al siguiente request.
+      // 2. El dashboard Server Component se re-fetcheé con el nuevo
+      //    rol (extraído del JWT en el cookie) — router.push/router.refresh
+      //    no garantiza esto cuando cambia el subject del JWT.
+      // 3. Se limpie el Client Router Cache de Next.js.
+      window.location.href = "/dashboard";
     } catch {
       closeMobileMenu();
-      router.push("/login");
-      router.refresh();
+      window.location.href = "/login";
     } finally {
       setSwitchingRole(null);
     }

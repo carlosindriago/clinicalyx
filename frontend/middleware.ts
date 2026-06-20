@@ -50,9 +50,20 @@ function buildCSP(): string {
     ? `'self' ${backendOrigin}`
     : "'self'";
 
+  // Whitelist de Cloudflare Analytics (Web Analytics / Insights).
+  // El script se sirve desde static.cloudflareinsights.com y reporta
+  // a cloudflareinsights.com vía beacon. Si Cloudflare no está
+  // habilitado en producción, simplemente no se carga nada, pero la
+  // CSP debe permitirlo para evitar errores en consola.
+  const cloudflareScriptHosts = [
+    "https://static.cloudflareinsights.com",
+    "https://cloudflareinsights.com",
+  ].join(" ");
+
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${cloudflareScriptHosts}`,
+    `connect-src ${connectSrc} ${cloudflareScriptHosts}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self'",
@@ -60,7 +71,6 @@ function buildCSP(): string {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    `connect-src ${connectSrc}`,
   ].join("; ");
 }
 
