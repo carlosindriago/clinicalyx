@@ -62,14 +62,14 @@ const ROLE_LABELS: Record<DemoRole, string> = {
 };
 
 const LOADING_STEPS = [
-  "Provisionando tenant aislado del sandbox...",
-  "Generando llaves criptograficas seguras...",
-  "Cifrando campos sensibles con AES-256-GCM...",
-  "Creando indices ciegos HMAC-SHA256 para documentos...",
-  "Sembrando pacientes y antecedentes clinicos de prueba...",
-  "Programando las proximas citas del dia...",
-  "Aplicando politicas PostgreSQL Row-Level Security...",
-  "Emitiendo sesion efimera inicial para el Doctor...",
+  "Preparando tu entorno clínico…",
+  "Estableciendo conexión segura…",
+  "Generando llaves criptográficas con AES-256-GCM…",
+  "Creando índices ciegos HMAC-SHA256 para búsquedas exactas…",
+  "Aplicando políticas de aislamiento por clínica (RLS)…",
+  "Sembrando pacientes y antecedentes de prueba…",
+  "Programando las próximas citas del día…",
+  "Emitiendo sesión efímera con tokens HttpOnly…",
 ];
 
 const ROLE_CARD_STYLES: Record<
@@ -295,53 +295,84 @@ export default function DemoLoadingPage() {
         </div>
 
         {isLoading ? (
-          <Card className="animate-in rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.03)] fade-in duration-500">
-            <CardContent className="flex flex-col items-center justify-center space-y-6 px-6 py-12 text-center">
+          <Card className="rounded-[32px] border border-white/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06),inset_1px_1px_0_rgba(255,255,255,0.95)] animate-in fade-in duration-500 dark:border-white/8 dark:bg-slate-900/95">
+            <CardContent className="flex flex-col items-center justify-center space-y-7 px-6 py-12 text-center">
+              {/* Spinner con logo central: anillos orbitales + badge Soft-UI */}
               <div className="relative flex items-center justify-center">
-                <div className="absolute size-24 animate-spin rounded-full border border-teal-200 border-t-teal-500 duration-1000" />
-                <div className="flex size-16 items-center justify-center rounded-[22px] bg-[linear-gradient(145deg,#effcfb,#d8fbfa)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.14)]">
-                  <Activity className="size-8" />
+                <div
+                  className="absolute size-28 animate-spin rounded-full border-2 border-transparent border-t-teal-500 border-r-teal-400/60 duration-1000"
+                  aria-hidden="true"
+                />
+                <div
+                  className="absolute size-20 animate-spin rounded-full border-2 border-transparent border-b-emerald-400/80 border-l-emerald-300/50 duration-[1500ms] [animation-direction:reverse]"
+                  aria-hidden="true"
+                />
+                <div
+                  className="absolute size-12 animate-ping rounded-full bg-teal-400/15 duration-2000"
+                  aria-hidden="true"
+                />
+                <div className="relative flex size-16 items-center justify-center rounded-[22px] bg-[linear-gradient(145deg,#effcfb,#d8fbfa)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.18),inset_1px_1px_0_rgba(255,255,255,0.95)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-300">
+                  <Activity className="size-7" aria-hidden="true" />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold tracking-tight text-slate-800">
-                  Preparando tu sandbox clinico
+                <h2 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-50">
+                  Preparando tu entorno clínico
                 </h2>
-                <div className="flex h-6 items-center justify-center">
-                  <p className="animate-pulse text-sm font-medium text-slate-500 transition-all duration-300">
+                <div
+                  className="flex h-6 items-center justify-center"
+                  aria-live="polite"
+                >
+                  <p
+                    key={stepIndex}
+                    className="animate-in fade-in slide-in-from-bottom-1 text-sm font-medium text-slate-500 duration-300 dark:text-slate-400"
+                  >
                     {LOADING_STEPS[stepIndex]}
                   </p>
                 </div>
               </div>
 
-              <div className="h-2 w-56 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full w-2/3 animate-pulse rounded-full bg-[linear-gradient(145deg,#25cbc9,#1da2be)] shadow-[0_6px_18px_rgba(29,162,190,0.18)]" />
+              {/* Barra de progreso indeterminada con gradiente animado */}
+              <div
+                className="relative h-2 w-64 overflow-hidden rounded-full bg-slate-100 shadow-[inset_1px_1px_2px_rgba(15,23,42,0.08)] dark:bg-slate-800/60"
+                role="progressbar"
+                aria-label="Progreso de inicialización del sandbox"
+              >
+                <div
+                  className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-[linear-gradient(90deg,transparent,#25cbc9,#1da2be,transparent)] shadow-[0_4px_12px_rgba(29,162,190,0.45)] animate-[demo-progress_1.6s_ease-in-out_infinite]"
+                  style={{
+                    animationName: "demo-progress",
+                    animationDuration: "1.6s",
+                    animationIterationCount: "infinite",
+                    animationTimingFunction: "ease-in-out",
+                  }}
+                />
               </div>
 
-              <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-teal-100 bg-teal-50/70 px-4 py-3">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-teal-700">
+              <div className="grid w-full max-w-xl gap-3 pt-2 sm:grid-cols-3">
+                <div className="rounded-2xl border border-teal-100/70 bg-teal-50/70 px-4 py-3 text-left shadow-[inset_1px_1px_0_rgba(255,255,255,0.7)] dark:border-teal-900/40 dark:bg-teal-950/30">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700 dark:text-teal-300">
                     Seguridad
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Aislamiento por tenant y RLS.
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    Aislamiento por clínica con RLS.
                   </p>
                 </div>
-                <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-sky-700">
+                <div className="rounded-2xl border border-sky-100/70 bg-sky-50/70 px-4 py-3 text-left shadow-[inset_1px_1px_0_rgba(255,255,255,0.7)] dark:border-sky-900/40 dark:bg-sky-950/30">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
                     Datos demo
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                     Pacientes y citas de ejemplo.
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-700">
-                    Tiempo real
+                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-left shadow-[inset_1px_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/60 dark:bg-slate-800/40">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-700 dark:text-slate-300">
+                    En vivo
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Configuracion automatica en curso.
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    Configuración automática en curso.
                   </p>
                 </div>
               </div>

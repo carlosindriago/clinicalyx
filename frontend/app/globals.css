@@ -138,3 +138,12 @@
     @apply font-sans tracking-tight text-foreground;
   }
 }
+
+@keyframes demo-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
