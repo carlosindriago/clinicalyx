@@ -326,10 +326,18 @@ export function Sidebar({
 
       <div className="mt-auto space-y-2 px-2 pb-1">
         <DropdownMenu>
+          {/*
+           * Base UI v1 API: el `render` prop de Trigger/Item espera
+           * una FUNCIÓN (props) => ReactElement, NO un ReactElement
+           * directo. Pasar un elemento literal (como hacíamos antes)
+           * rompe el Context interno y dispara el error #31
+           * "Context Missing" en cuanto se hace clic.
+           */}
           <DropdownMenuTrigger
-            render={
+            render={(props) => (
               <button
                 type="button"
+                {...props}
                 className="flex w-full items-center gap-3 rounded-[18px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 text-left shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               >
                 <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
@@ -353,7 +361,7 @@ export function Sidebar({
                   aria-hidden="true"
                 />
               </button>
-            }
+            )}
           />
           {/*
            * side="top" align="end" fuerza que el dropdown SIEMPRE se
@@ -385,65 +393,118 @@ export function Sidebar({
                   const isCurrentRole = demoSandbox.currentRole === role;
                   const isSwitching = switchingRole === role;
 
+                  /*
+                   * `render` con función (props) => ReactElement: Base UI
+                   * v1 requiere este patrón para pasar correctamente
+                   * los data-attributes, event handlers y refs al
+                   * elemento hijo. Pasar un <button> directo rompe
+                   * el Context y produce Base UI error #31.
+                   */
                   return (
                     <DropdownMenuItem
                       key={role}
-                      onClick={() => handleSwitchRole(role)}
-                      disabled={switchingRole !== null || isLoggingOut}
-                      className={cn(
-                        "flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-sm text-white/85",
-                        "focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white",
-                        isCurrentRole &&
-                          "bg-[linear-gradient(145deg,rgba(216,251,250,0.18),rgba(151,242,236,0.12))] text-[#c9fbf7]"
+                      render={(props) => (
+                        <button
+                          type="button"
+                          {...props}
+                          onClick={(event) => {
+                            // Importante: Base UI usa mousedown/mouseup
+                            // para activar el item, no click. Capturamos
+                            // también mousedown para que la mutación
+                            // arranque al toque real del usuario.
+                            if (
+                              event.type === "click" ||
+                              event.type === "mousedown"
+                            ) {
+                              event.preventDefault();
+                              void handleSwitchRole(role);
+                            }
+                          }}
+                          disabled={switchingRole !== null || isLoggingOut}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-white/85",
+                            "focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white",
+                            isCurrentRole &&
+                              "bg-[linear-gradient(145deg,rgba(216,251,250,0.18),rgba(151,242,236,0.12))] text-[#c9fbf7]"
+                          )}
+                        >
+                          <span className="flex items-center gap-2">
+                            <RoleIllustration
+                              role={role}
+                              compact
+                              className="size-7 rounded-full"
+                            />
+                            <span className="font-medium">{ROLE_LABELS[role]}</span>
+                          </span>
+                          {isCurrentRole ? (
+                            <Check
+                              className="size-4 text-[#7ae6e0]"
+                              aria-hidden="true"
+                            />
+                          ) : isSwitching ? (
+                            <Loader2
+                              className="size-4 animate-spin text-white/70"
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                        </button>
                       )}
-                    >
-                      <span className="flex items-center gap-2">
-                        <RoleIllustration
-                          role={role}
-                          compact
-                          className="size-7 rounded-full"
-                        />
-                        <span className="font-medium">{ROLE_LABELS[role]}</span>
-                      </span>
-                      {isCurrentRole ? (
-                        <Check
-                          className="size-4 text-[#7ae6e0]"
-                          aria-hidden="true"
-                        />
-                      ) : isSwitching ? (
-                        <Loader2
-                          className="size-4 animate-spin text-white/70"
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                    </DropdownMenuItem>
+                    />
                   );
                 })}
                 <DropdownMenuSeparator className="my-1 bg-white/10" />
                 <DropdownMenuItem
-                  onClick={handleLogout}
-                  disabled={switchingRole !== null || isLoggingOut}
-                  className="flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm text-rose-200 focus:bg-rose-500/15 focus:text-rose-100 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-100"
-                >
-                  <LogOut className="size-4" aria-hidden="true" />
-                  <span className="font-medium">Cerrar sesión</span>
-                  {isLoggingOut ? (
-                    <Loader2
-                      className="ml-auto size-4 animate-spin"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </DropdownMenuItem>
+                  render={(props) => (
+                    <button
+                      type="button"
+                      {...props}
+                      onClick={(event) => {
+                        if (
+                          event.type === "click" ||
+                          event.type === "mousedown"
+                        ) {
+                          event.preventDefault();
+                          void handleLogout();
+                        }
+                      }}
+                      disabled={switchingRole !== null || isLoggingOut}
+                      className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-rose-200 focus:bg-rose-500/15 focus:text-rose-100 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-100"
+                    >
+                      <LogOut className="size-4" aria-hidden="true" />
+                      <span className="font-medium">Cerrar sesión</span>
+                      {isLoggingOut ? (
+                        <Loader2
+                          className="ml-auto size-4 animate-spin"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                    </button>
+                  )}
+                />
               </>
             ) : (
               <DropdownMenuItem
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm text-rose-200 focus:bg-rose-500/15 focus:text-rose-100 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-100"
-              >
-                <LogOut className="size-4" aria-hidden="true" />
-                <span className="font-medium">Cerrar sesión</span>
-              </DropdownMenuItem>
+                render={(props) => (
+                  <button
+                    type="button"
+                    {...props}
+                    onClick={(event) => {
+                      if (
+                        event.type === "click" ||
+                        event.type === "mousedown"
+                      ) {
+                        event.preventDefault();
+                        void handleLogout();
+                      }
+                    }}
+                    disabled={isLoggingOut}
+                    className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-rose-200 focus:bg-rose-500/15 focus:text-rose-100 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-100"
+                  >
+                    <LogOut className="size-4" aria-hidden="true" />
+                    <span className="font-medium">Cerrar sesión</span>
+                  </button>
+                )}
+              />
             )}
           </DropdownMenuContent>
         </DropdownMenu>
