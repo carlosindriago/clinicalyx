@@ -5,14 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
-  Check,
-  ChevronDown,
   ClipboardList,
   FileText,
   HeartPulse,
   LayoutDashboard,
-  Loader2,
-  LogOut,
   Settings,
   UserPlus,
   UsersRound,
@@ -21,15 +17,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { RoleIllustration } from "@/components/role-illustration";
+import { UserRoleSwitcher, type DemoRole, type UserRoleSwitcherProps } from "@/components/user-role-switcher";
 import { cn } from "@/lib/utils";
 
 type DemoCredentials = {
@@ -39,8 +27,6 @@ type DemoCredentials = {
   password: string;
 };
 
-type DemoRole = "doctor" | "receptionist" | "admin";
-
 type DemoSandboxState = {
   tenantId: string;
   password: string;
@@ -49,12 +35,6 @@ type DemoSandboxState = {
 };
 
 const DEMO_STORAGE_KEY = "clinicalyx_demo_sandbox";
-
-const ROLE_LABELS: Record<DemoRole, string> = {
-  admin: "Superadmin",
-  doctor: "Doctor",
-  receptionist: "Recepcionista",
-};
 
 type SidebarProps = {
   isMobileOpen?: boolean;
@@ -103,7 +83,6 @@ function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") {
     return pathname === href;
   }
-
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -113,8 +92,6 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [demoSandbox, setDemoSandbox] = useState<DemoSandboxState | null>(null);
-  const [switchingRole, setSwitchingRole] = useState<DemoRole | null>(null);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -123,144 +100,23 @@ export function Sidebar({
         if (!storedSandbox) {
           return;
         }
-
         const parsed = JSON.parse(storedSandbox) as DemoSandboxState;
         if (!parsed.tenantId || !parsed.credentials) {
           return;
         }
-
         setDemoSandbox(parsed);
       } catch {
         setDemoSandbox(null);
       }
     }, 0);
-
     return () => window.clearTimeout(timer);
   }, []);
-
-  const emailForRole = (role: DemoRole) => {
-    if (!demoSandbox) {
-      return "";
-    }
-
-    switch (role) {
-      case "doctor":
-        return demoSandbox.credentials.doctor_email;
-      case "receptionist":
-        return demoSandbox.credentials.receptionist_email;
-      case "admin":
-        return demoSandbox.credentials.admin_email;
-    }
-  };
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    closeMobileMenu();
-
-    try {
-      // Logout simple: limpiamos el sandbox persistido (si existe)
-      // y navegamos al login. No llamamos al endpoint del backend
-      // porque las cookies HttpOnly se invalidan al cambiar de
-      // sesión (el siguiente request no las lleva si expiraron o
-      // si el usuario navega manualmente).
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(DEMO_STORAGE_KEY);
-      }
-      setDemoSandbox(null);
-    } finally {
-      window.location.replace("/login");
-    }
-  };
-
-  const handleSwitchRole = async (role: DemoRole) => {
-    // Para el flujo del portfolio mode, el cambio de rol ya no usa
-    // el sandbox persistido en localStorage. Llamamos directamente
-    // al endpoint optimizado /api/demo/start?role=X, que crea un
-    // sandbox NUEVO con el rol solicitado, autentica vía cookies
-    // HttpOnly, y devuelve un JSON con las credenciales. La sesión
-    // anterior queda invalidada.
-    //
-    // Esto elimina varios puntos de fallo del flujo anterior:
-    //   - El sandbox persistido podía haber expirado (2h) o haber
-    //     sido purgado por el Grim Reaper.
-    //   - El doble round-trip logout + login podía fallar en uno de
-    //     los dos pasos.
-    //   - El header X-Tenant-ID del cliente ya no se reenvía
-    //     (eliminado en la Fase 2 por seguridad).
-    //
-    // Después del POST exitoso, window.location.replace fuerza una
-    // recarga absoluta del navegador que limpia el Client Router
-    // Cache de Next.js y el Server Component se re-fetcheá con el
-    // nuevo rol extraído del JWT firmado.
-
-    if (role === "doctor" || role === "receptionist" || role === "admin") {
-      // ok
-    } else {
-      return;
-    }
-
-    setSwitchingRole(role);
-    closeMobileMenu();
-
-    try {
-      const response = await fetch(
-        `/api/demo/start?role=${encodeURIComponent(role)}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        // Caso especial: 429 (rate limit excedido). El proxy ya
-        // devuelve el mensaje en español, lo mostramos tal cual.
-        const payload = (await response.json().catch(() => ({}))) as {
-          error?: unknown;
-        };
-        const errorMessage =
-          payload && typeof payload.error === "string"
-            ? payload.error
-            : "No se pudo cambiar de rol en el sandbox.";
-        throw new Error(errorMessage);
-      }
-
-      // El backend emite nuevas cookies HttpOnly (access_token +
-      // refresh_token) para el rol solicitado. NO necesitamos
-      // persistir nada en localStorage aquí porque el sandbox es
-      // nuevo: si el usuario hace otro cambio de rol, el flujo se
-      // repite y crea un sandbox fresco.
-      window.location.replace("/dashboard");
-    } catch (error: unknown) {
-      // En caso de error, limpiamos el sandbox persistido y
-      // volvemos al login con un mensaje de error si está disponible.
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(DEMO_STORAGE_KEY);
-      }
-      setDemoSandbox(null);
-      const errorMessage =
-        error instanceof Error ? error.message : "Error al cambiar de rol.";
-      // Codificamos el mensaje en el query string para mostrarlo
-      // en /login. Usamos encodeURIComponent para caracteres
-      // especiales.
-      window.location.replace(
-        `/login?error=${encodeURIComponent(errorMessage)}`
-      );
-    } finally {
-      setSwitchingRole(null);
-    }
-  };
-
-  const currentRoleLabel = demoSandbox
-    ? ROLE_LABELS[demoSandbox.currentRole]
-    : "Recepcionista";
 
   const closeMobileMenu = () => {
     onMobileClose?.();
   };
 
-  const activeRole = demoSandbox?.currentRole ?? "doctor";
+  const activeRole: DemoRole = demoSandbox?.currentRole ?? "doctor";
   const navigationItems = NAVIGATION_BY_ROLE[activeRole];
 
   const sidebarContent = (
@@ -298,7 +154,6 @@ export function Sidebar({
         {navigationItems.map((item) => {
           const isActive = isActivePath(pathname, item.href);
           const Icon = item.icon;
-
           return (
             <Link
               key={item.href}
@@ -324,190 +179,19 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="mt-auto space-y-2 px-2 pb-1">
-        <DropdownMenu>
-          {/*
-           * Base UI v1 API: el `render` prop de Trigger/Item espera
-           * una FUNCIÓN (props) => ReactElement, NO un ReactElement
-           * directo. Pasar un elemento literal (como hacíamos antes)
-           * rompe el Context interno y dispara el error #31
-           * "Context Missing" en cuanto se hace clic.
-           */}
-          <DropdownMenuTrigger
-            render={(props) => (
-              <button
-                type="button"
-                {...props}
-                className="flex w-full items-center gap-3 rounded-[18px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-1.5 text-left shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),8px_12px_24px_rgba(4,18,34,0.18)] backdrop-blur-sm transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-              >
-                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
-                  {demoSandbox ? (
-                    <RoleIllustration
-                      role={demoSandbox.currentRole}
-                      compact
-                      className="scale-[1.15]"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-[#0f766e]">R</span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">
-                    {currentRoleLabel}
-                  </p>
-                </div>
-                <ChevronDown
-                  className="size-4 text-[#7ae6e0]"
-                  aria-hidden="true"
-                />
-              </button>
-            )}
-          />
-          {/*
-           * side="top" align="end" fuerza que el dropdown SIEMPRE se
-           * abra hacia arriba (nunca se recorta en pantallas bajas) y
-           * alineado al final del trigger (estético consistente).
-           * sideOffset añade un gap visual entre el trigger y el menú.
-           */}
-          <DropdownMenuContent
-            side="top"
-            align="end"
-            sideOffset={10}
-            className="w-64 rounded-2xl border border-white/15 bg-[linear-gradient(180deg,#0d3b5e_0%,#0a2c47_100%)] p-2 text-white shadow-[0_18px_50px_rgba(0,0,0,0.45),inset_1px_1px_0_rgba(255,255,255,0.08)]"
-          >
-            {demoSandbox ? (
-              <>
-                <DropdownMenuLabel className="space-y-1 px-2 py-1.5">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/55">
-                    Sesión actual
-                  </p>
-                  <p className="truncate text-xs font-medium text-white/85">
-                    {emailForRole(demoSandbox.currentRole)}
-                  </p>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator className="my-1 bg-white/10" />
-                <DropdownMenuLabel className="px-2 pt-1 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/55">
-                  Cambiar de rol
-                </DropdownMenuLabel>
-                {(["doctor", "receptionist", "admin"] as const).map((role) => {
-                  const isCurrentRole = demoSandbox.currentRole === role;
-                  const isSwitching = switchingRole === role;
-
-                  /*
-                   * `render` con función (props) => ReactElement: Base UI
-                   * v1 requiere este patrón para pasar correctamente
-                   * los data-attributes, event handlers y refs al
-                   * elemento hijo. Pasar un <button> directo rompe
-                   * el Context y produce Base UI error #31.
-                   */
-                  return (
-                    <DropdownMenuItem
-                      key={role}
-                      render={(props) => (
-                        <button
-                          type="button"
-                          {...props}
-                          onClick={(event) => {
-                            // Importante: Base UI usa mousedown/mouseup
-                            // para activar el item, no click. Capturamos
-                            // también mousedown para que la mutación
-                            // arranque al toque real del usuario.
-                            if (
-                              event.type === "click" ||
-                              event.type === "mousedown"
-                            ) {
-                              event.preventDefault();
-                              void handleSwitchRole(role);
-                            }
-                          }}
-                          disabled={switchingRole !== null || isLoggingOut}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-white/85",
-                            "focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white",
-                            isCurrentRole &&
-                              "bg-[linear-gradient(145deg,rgba(216,251,250,0.18),rgba(151,242,236,0.12))] text-[#c9fbf7]"
-                          )}
-                        >
-                          <span className="flex items-center gap-2">
-                            <RoleIllustration
-                              role={role}
-                              compact
-                              className="size-7 rounded-full"
-                            />
-                            <span className="font-medium">{ROLE_LABELS[role]}</span>
-                          </span>
-                          {isCurrentRole ? (
-                            <Check
-                              className="size-4 text-[#7ae6e0]"
-                              aria-hidden="true"
-                            />
-                          ) : isSwitching ? (
-                            <Loader2
-                              className="size-4 animate-spin text-white/70"
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                        </button>
-                      )}
-                    />
-                  );
-                })}
-                <DropdownMenuSeparator className="my-1 bg-white/10" />
-                <DropdownMenuItem
-                  render={(props) => (
-                    <button
-                      type="button"
-                      {...props}
-                      onClick={(event) => {
-                        if (
-                          event.type === "click" ||
-                          event.type === "mousedown"
-                        ) {
-                          event.preventDefault();
-                          void handleLogout();
-                        }
-                      }}
-                      disabled={switchingRole !== null || isLoggingOut}
-                      className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-rose-200 focus:bg-rose-500/15 focus:text-rose-100 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-100"
-                    >
-                      <LogOut className="size-4" aria-hidden="true" />
-                      <span className="font-medium">Cerrar sesión</span>
-                      {isLoggingOut ? (
-                        <Loader2
-                          className="ml-auto size-4 animate-spin"
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                    </button>
-                  )}
-                />
-              </>
-            ) : (
-              <DropdownMenuItem
-                render={(props) => (
-                  <button
-                    type="button"
-                    {...props}
-                    onClick={(event) => {
-                      if (
-                        event.type === "click" ||
-                        event.type === "mousedown"
-                      ) {
-                        event.preventDefault();
-                        void handleLogout();
-                      }
-                    }}
-                    disabled={isLoggingOut}
-                    className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-rose-200 focus:bg-rose-500/15 focus:text-rose-100 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-100"
-                  >
-                    <LogOut className="size-4" aria-hidden="true" />
-                    <span className="font-medium">Cerrar sesión</span>
-                  </button>
-                )}
-              />
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/*
+       * El UserRoleSwitcher es un Client Component autocontenido con
+       * "use client" propio, encapsula la lógica del DropdownMenu de
+       * Base UI. Esto evita que el Context del DropdownMenu se rompa
+       * si este Sidebar se renderiza dentro de un Server Component
+       * o layout complejo. Pasamos el sandbox como prop para que
+       * UserRoleSwitcher permanezca puro y testeable.
+       */}
+      <div className="mt-auto px-2 pb-1">
+        <UserRoleSwitcher
+          sandbox={demoSandbox}
+          {...({} as Pick<UserRoleSwitcherProps, "isLoggingOut">)}
+        />
       </div>
     </>
   );
@@ -515,11 +199,6 @@ export function Sidebar({
   return (
     <>
       {isMobileOpen ? (
-        /*
-         * overflow-visible en el overlay para que el dropdown del
-         * selector de rol pueda abrirse por encima del borde inferior
-         * sin recortarse. La sombra interna la provee el contenido.
-         */
         <div className="fixed inset-0 z-50 md:hidden" aria-hidden={!isMobileOpen}>
           <button
             type="button"
@@ -533,12 +212,6 @@ export function Sidebar({
         </div>
       ) : null}
 
-      {/*
-       * overflow-visible (antes overflow-hidden) en el aside desktop
-       * para evitar que el dropdown del selector de rol (que se abre
-       * con side="top" align="end") se recorte contra el borde
-       * inferior del sidebar en pantallas bajas.
-       */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[14.25rem] flex-col overflow-visible bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] md:flex">
         {sidebarContent}
       </aside>
