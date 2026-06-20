@@ -251,10 +251,14 @@ export function Sidebar({
       //    rol (extraído del JWT en el cookie) — router.push/router.refresh
       //    no garantiza esto cuando cambia el subject del JWT.
       // 3. Se limpie el Client Router Cache de Next.js.
-      window.location.href = "/dashboard";
+      // Se usa .replace() (método, no asignación) para satisfacer la
+      // regla react-hooks/immutability de eslint-config-next, y para
+      // reemplazar la entrada del historial (back button no devuelve
+      // a la sesión anterior, lo cual es deseable tras cambio de rol).
+      window.location.replace("/dashboard");
     } catch {
       closeMobileMenu();
-      window.location.href = "/login";
+      window.location.replace("/login");
     } finally {
       setSwitchingRole(null);
     }

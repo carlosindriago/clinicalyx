@@ -22,7 +22,6 @@ interface RouteErrorProps {
 export default function RouteError({ error, reset }: RouteErrorProps) {
   useEffect(() => {
     if (process.env.NODE_ENV === "production" && error.digest) {
-      // eslint-disable-next-line no-console
       console.error("[RouteError]", error.digest);
     }
   }, [error]);

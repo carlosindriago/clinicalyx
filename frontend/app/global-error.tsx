@@ -28,7 +28,6 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
     // en consola; en producción se debería enviar a Sentry/Datadog/etc.
     // Importante: NO loguear error.message al cliente en producción.
     if (process.env.NODE_ENV === "production" && error.digest) {
-      // eslint-disable-next-line no-console
       console.error("[GlobalError]", error.digest);
     }
   }, [error]);

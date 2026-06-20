@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Copy,
   KeyRound,
-  Loader2,
   ShieldCheck,
 } from "lucide-react";
 
