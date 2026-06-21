@@ -786,7 +786,7 @@ export default function DashboardPage() {
                     {metric.context.map((item) => (
                       <div
                         key={item.label}
-                        className="rounded-[20px] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.74)_0%,rgba(240,249,255,0.74)_100%)] px-4 py-3 shadow-[inset_1px_1px_0_rgba(255,255,255,0.92),6px_8px_18px_rgba(130,188,198,0.1)] dark:border-white/8 dark:bg-slate-900/62 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),6px_8px_16px_rgba(0,0,0,0.18)]"
+                        className="rounded-[20px] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.74)_0%,rgba(240,249,255,0.74)_100%)] px-4 py-3 shadow-[inset_1px_1px_0_rgba(255,255,255,0.92),6px_8px_18px_rgba(130,188,198,0.1)] dark:border-white/8 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.78)_0%,rgba(8,15,28,0.88)_100%)] dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),6px_8px_16px_rgba(0,0,0,0.24)]"
                       >
                         <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                           {item.label}
