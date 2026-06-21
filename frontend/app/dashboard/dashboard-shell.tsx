@@ -80,9 +80,9 @@ export function DashboardShell({ currentRole, children }: DashboardShellProps) {
           className="pointer-events-none absolute inset-0 opacity-80"
           aria-hidden="true"
         >
-          <div className="absolute left-[8%] top-12 h-56 w-56 rounded-full bg-[#9eecea]/45 blur-3xl dark:bg-teal-700/18" />
-          <div className="absolute right-[12%] top-24 h-64 w-64 rounded-full bg-[#b7f1ff]/50 blur-3xl dark:bg-sky-700/14" />
-          <div className="absolute bottom-8 left-1/3 h-72 w-72 rounded-full bg-white/55 blur-3xl dark:bg-cyan-900/10" />
+          <div className="absolute left-[8%] top-12 h-56 w-56 rounded-full bg-[#9eecea]/45 blur-3xl dark:bg-teal-700/8" />
+          <div className="absolute right-[12%] top-24 h-64 w-64 rounded-full bg-[#b7f1ff]/50 blur-3xl dark:bg-sky-700/6" />
+          <div className="absolute bottom-8 left-1/3 h-72 w-72 rounded-full bg-white/55 blur-3xl dark:bg-cyan-900/5" />
           <div className="absolute right-10 top-40 h-32 w-32 rounded-[36px] border border-white/35 bg-white/18 rotate-12 blur-sm dark:border-white/6 dark:bg-white/4" />
           <div className="absolute left-16 top-1/2 h-24 w-24 rounded-[28px] border border-white/30 bg-white/16 -rotate-12 blur-sm dark:border-white/6 dark:bg-white/4" />
         </div>

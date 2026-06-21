@@ -206,13 +206,13 @@ export function Sidebar({
             className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
             onClick={closeMobileMenu}
           />
-          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[86vw] flex-col overflow-visible bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-2xl">
+          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[86vw] flex-col overflow-visible bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-2xl dark:bg-[linear-gradient(180deg,#0c1626_0%,#0a1220_50%,#070d18_100%)]">
             {sidebarContent}
           </aside>
         </div>
       ) : null}
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[14.25rem] flex-col overflow-visible bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] md:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[14.25rem] flex-col overflow-visible bg-[linear-gradient(180deg,#0f4a7a_0%,#0c3d69_26%,#0a3156_58%,#092947_100%)] px-3 py-4 text-white shadow-[18px_0_40px_rgba(8,24,44,0.24)] dark:bg-[linear-gradient(180deg,#0c1626_0%,#0a1220_50%,#070d18_100%)] dark:shadow-[18px_0_40px_rgba(0,0,0,0.45),inset_1px_0_0_rgba(255,255,255,0.05)] md:flex">
         {sidebarContent}
       </aside>
     </>

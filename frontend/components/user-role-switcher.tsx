@@ -208,7 +208,7 @@ export function UserRoleSwitcher({
         side="top"
         align="end"
         sideOffset={10}
-        className="w-64 rounded-2xl border border-white/15 bg-[linear-gradient(180deg,#0d3b5e_0%,#0a2c47_100%)] p-2 text-white shadow-[0_18px_50px_rgba(0,0,0,0.45),inset_1px_1px_0_rgba(255,255,255,0.08)]"
+        className="w-64 rounded-2xl border border-white/15 bg-[linear-gradient(180deg,#0d3b5e_0%,#0a2c47_100%)] p-2 text-white shadow-[0_18px_50px_rgba(0,0,0,0.45),inset_1px_1px_0_rgba(255,255,255,0.08)] dark:border-white/8 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(9,18,31,0.98)_100%)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.55),inset_1px_1px_0_rgba(255,255,255,0.05)]"
       >
         {hasSandbox && sandbox ? (
           <>

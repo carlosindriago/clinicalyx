@@ -204,13 +204,13 @@ export default function MedicalFileDropzone({ patientId }: MedicalFileDropzonePr
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+    <div className="w-full max-w-2xl mx-auto p-6 bg-white dark:bg-slate-900 rounded-lg shadow-lg">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
           <Upload className="w-6 h-6" />
           Subir Archivo Médico
         </h2>
-        <p className="text-gray-600 dark:text-gray-300 mt-2">
+        <p className="text-gray-600 dark:text-slate-300 mt-2">
           Sube documentos médicos como imágenes, PDFs o archivos de texto. Máximo 10MB.
         </p>
       </div>
@@ -220,7 +220,7 @@ export default function MedicalFileDropzone({ patientId }: MedicalFileDropzonePr
         className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
           selectedFile
             ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-            : "border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+            : "border-gray-300 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-600"
         }`}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -238,12 +238,12 @@ export default function MedicalFileDropzone({ patientId }: MedicalFileDropzonePr
           <div className="w-16 h-16 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
             <File className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
-          
+
           <div>
-            <p className="text-lg font-medium text-gray-800 dark:text-white">
+            <p className="text-lg font-medium text-gray-800 dark:text-slate-100">
               {selectedFile ? selectedFile.name : "Arrastra y suelta tu archivo aquí"}
             </p>
-            <p className="text-gray-500 dark:text-gray-400 mt-2">
+            <p className="text-gray-500 dark:text-slate-400 mt-2">
               {selectedFile
                 ? `Tamaño: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
                 : "o haz clic para seleccionar"}
@@ -255,21 +255,21 @@ export default function MedicalFileDropzone({ patientId }: MedicalFileDropzonePr
       {/* Pasos de subida */}
       {isUploading && (
         <div className="mt-8">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-4">
             Progreso de subida
           </h3>
           <div className="space-y-4">
             {uploadProgress.map((step) => (
               <div
                 key={step.step}
-                className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
               >
                 {getStepIcon(step.status)}
                 <div className="flex-1">
-                  <p className="font-medium text-gray-800 dark:text-white">
+                  <p className="font-medium text-gray-800 dark:text-slate-100">
                     Paso {step.step}: {step.message}
                   </p>
-                  <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mt-2">
+                  <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 mt-2">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
                         step.status === "completed"
@@ -278,7 +278,7 @@ export default function MedicalFileDropzone({ patientId }: MedicalFileDropzonePr
                           ? "bg-blue-500 w-1/2"
                           : step.status === "error"
                           ? "bg-red-500 w-full"
-                          : "bg-gray-300 dark:bg-gray-500 w-0"
+                          : "bg-gray-300 dark:bg-slate-600 w-0"
                       }`}
                     />
                   </div>
@@ -316,7 +316,7 @@ export default function MedicalFileDropzone({ patientId }: MedicalFileDropzonePr
           disabled={isUploading || !selectedFile}
           className={`px-6 py-3 rounded-lg font-medium transition-colors ${
             isUploading || !selectedFile
-              ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              ? "bg-gray-300 dark:bg-slate-700 text-gray-500 dark:text-slate-400 cursor-not-allowed"
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}
         >
