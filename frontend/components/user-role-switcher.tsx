@@ -17,6 +17,20 @@
 //   - Por eso este componente usa children directos y NO usa
 //     `render`. Es la forma más robusta.
 //
+// IMPORTANTE — error #31 (MenuGroupContext missing):
+//   En este proyecto, `DropdownMenuLabel` envuelve
+//   `MenuPrimitive.GroupLabel` (ver components/ui/dropdown-menu.tsx),
+//   y GroupLabel REQUIERE un `MenuGroupContext` que solo provee
+//   `Menu.Group` (envoltorio `DropdownMenuGroup`). Usar
+//   `DropdownMenuLabel` suelto (sin Group padre) lanza:
+//     "Base UI error #31: MenuGroupContext is missing. Menu group
+//      parts must be used within <Menu.Group> or <Menu.RadioGroup>."
+//   Para headers visuales sin items seleccionables (como "Sesión
+//   actual"), usamos un <div> estilizado en lugar de Label.
+//   Para grupos reales de items (como "Cambiar de rol"), envolvemos
+//   el Label y los items en <DropdownMenuGroup>, lo que además
+//   habilita roving focus con flechas dentro del grupo.
+//
 // El componente es un Client Component autocontenido: cualquier
 // uso desde un Server Component (e.g. el layout) lo trata como
 // un boundary de hidratación sin propagar el Context problemático.
@@ -27,6 +41,7 @@ import { Check, ChevronDown, Loader2, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -197,62 +212,86 @@ export function UserRoleSwitcher({
       >
         {hasSandbox && sandbox ? (
           <>
-            <DropdownMenuLabel className="space-y-1 px-2 py-1.5">
+            {/*
+             * "Sesión actual" es solo un encabezado visual (no es un
+             * grupo de items seleccionables). Lo renderizamos como un
+             * <div> estilizado en lugar de <DropdownMenuLabel> para
+             * evitar el error #31 de Base UI: MenuGroupContext missing.
+             * <DropdownMenuLabel> en este proyecto envuelve
+             * MenuPrimitive.GroupLabel, que requiere un
+             * <DropdownMenuGroup> padre. Como este encabezado no
+             * contiene items, no podemos darle un Group significativo
+             * y un <div> resuelve el problema sin acoplar estructura.
+             */}
+            <div className="space-y-1 px-2 py-1.5">
               <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/55">
                 Sesión actual
               </p>
               <p className="truncate text-xs font-medium text-white/85">
                 {emailForRole(sandbox.currentRole)}
               </p>
-            </DropdownMenuLabel>
+            </div>
             <DropdownMenuSeparator className="my-1 bg-white/10" />
-            <DropdownMenuLabel className="px-2 pt-1 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/55">
-              Cambiar de rol
-            </DropdownMenuLabel>
-            {ROLE_ORDER.map((role) => {
-              const isCurrentRole = sandbox.currentRole === role;
-              const isSwitching = switchingRole === role;
-              return (
-                <DropdownMenuItem
-                  key={role}
-                  render={
-                    <button
-                      type="button"
-                      disabled={switchingRole !== null || isLoggingOut}
-                      className={cn(
-                        "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-white/85",
-                        "focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white",
-                        isCurrentRole &&
-                          "bg-[linear-gradient(145deg,rgba(216,251,250,0.18),rgba(151,242,236,0.12))] text-[#c9fbf7]"
-                      )}
-                      onClick={() => {
-                        void handleSwitchRole(role);
-                      }}
-                    />
-                  }
-                >
-                  <span className="flex items-center gap-2">
-                    <RoleIllustration
-                      role={role}
-                      compact
-                      className="size-7 rounded-full"
-                    />
-                    <span className="font-medium">{ROLE_LABELS[role]}</span>
-                  </span>
-                  {isCurrentRole ? (
-                    <Check
-                      className="size-4 text-[#7ae6e0]"
-                      aria-hidden="true"
-                    />
-                  ) : isSwitching ? (
-                    <Loader2
-                      className="size-4 animate-spin text-white/70"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </DropdownMenuItem>
-              );
-            })}
+            {/*
+             * "Cambiar de rol" es un grupo real de 3 items
+             * seleccionables. Lo envolvemos en <DropdownMenuGroup>
+             * (= MenuPrimitive.Group) para:
+             *   1. Resolver el error #31: el GroupLabel que viene
+             *      después ahora vive dentro del Provider correcto
+             *      (MenuGroupContext).
+             *   2. Habilitar roving focus nativo de Base UI: las
+             *      flechas arriba/abajo ciclarán entre los 3 roles
+             *      sin escapar al grupo de logout.
+             */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2 pt-1 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/55">
+                Cambiar de rol
+              </DropdownMenuLabel>
+              {ROLE_ORDER.map((role) => {
+                const isCurrentRole = sandbox.currentRole === role;
+                const isSwitching = switchingRole === role;
+                return (
+                  <DropdownMenuItem
+                    key={role}
+                    render={
+                      <button
+                        type="button"
+                        disabled={switchingRole !== null || isLoggingOut}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-white/85",
+                          "focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white",
+                          isCurrentRole &&
+                            "bg-[linear-gradient(145deg,rgba(216,251,250,0.18),rgba(151,242,236,0.12))] text-[#c9fbf7]"
+                        )}
+                        onClick={() => {
+                          void handleSwitchRole(role);
+                        }}
+                      />
+                    }
+                  >
+                    <span className="flex items-center gap-2">
+                      <RoleIllustration
+                        role={role}
+                        compact
+                        className="size-7 rounded-full"
+                      />
+                      <span className="font-medium">{ROLE_LABELS[role]}</span>
+                    </span>
+                    {isCurrentRole ? (
+                      <Check
+                        className="size-4 text-[#7ae6e0]"
+                        aria-hidden="true"
+                      />
+                    ) : isSwitching ? (
+                      <Loader2
+                        className="size-4 animate-spin text-white/70"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator className="my-1 bg-white/10" />
             <DropdownMenuItem
               render={
