@@ -182,7 +182,7 @@ export function UserRoleSwitcher({
           />
         }
       >
-        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)]">
+        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#c9fbf7,#7ae6e0)] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),8px_10px_18px_rgba(5,38,65,0.24)] dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(8,15,28,0.95))] dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_10px_18px_rgba(0,0,0,0.45)]">
           {hasSandbox && sandbox ? (
             <RoleIllustration
               role={sandbox.currentRole}
@@ -199,7 +199,7 @@ export function UserRoleSwitcher({
           </p>
         </div>
         <ChevronDown
-          className="size-4 text-[#7ae6e0]"
+          className="size-4 text-teal-600 dark:text-teal-400"
           aria-hidden="true"
         />
       </DropdownMenuTrigger>
@@ -261,7 +261,7 @@ export function UserRoleSwitcher({
                           "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-white/85",
                           "focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white",
                           isCurrentRole &&
-                            "bg-[linear-gradient(145deg,rgba(216,251,250,0.18),rgba(151,242,236,0.12))] text-[#c9fbf7]"
+                            "bg-[linear-gradient(145deg,rgba(216,251,250,0.18),rgba(151,242,236,0.12))] text-[#c9fbf7] dark:bg-[linear-gradient(145deg,rgba(20,184,166,0.18),rgba(13,148,136,0.12))] dark:text-teal-300"
                         )}
                         onClick={() => {
                           void handleSwitchRole(role);
@@ -279,7 +279,7 @@ export function UserRoleSwitcher({
                     </span>
                     {isCurrentRole ? (
                       <Check
-                        className="size-4 text-[#7ae6e0]"
+                        className="size-4 text-teal-600 dark:text-teal-400"
                         aria-hidden="true"
                       />
                     ) : isSwitching ? (

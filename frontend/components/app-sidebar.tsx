@@ -123,7 +123,7 @@ export function Sidebar({
     <>
       <div className="rounded-br-[24px] border-b border-white/10 pb-5 pl-2 pr-3 pt-2">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d4f8f8,#83ece7)] text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),8px_10px_20px_rgba(5,38,65,0.25)]">
+          <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d4f8f8,#83ece7)] text-[#0f766e] shadow-[inset_1px_1px_0_rgba(255,255,255,0.75),8px_10px_20px_rgba(5,38,65,0.25)] dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(8,15,28,0.95))] dark:text-teal-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_10px_20px_rgba(0,0,0,0.45)]">
             <HeartPulse className="size-6" aria-hidden="true" />
           </div>
           <div className="min-w-0">

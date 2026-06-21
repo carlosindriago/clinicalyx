@@ -50,7 +50,7 @@ const statusStyles: Record<
 > = {
   Activo: {
     dotClassName: "bg-teal-500",
-    textClassName: "text-teal-700 dark:text-teal-300",
+    textClassName: "text-teal-700 dark:text-teal-400",
     label: "Activo",
   },
   Alta: {
@@ -100,19 +100,19 @@ export function PatientsTable({ patients }: PatientsTableProps) {
       <Table>
         <TableHeader>
           <TableRow className="border-b border-white/60 bg-white/40 dark:border-white/8 dark:bg-slate-900/40">
-            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-300">
+            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">
               Paciente
             </TableHead>
-            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-300">
+            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">
               Documento
             </TableHead>
-            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-300">
+            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">
               Última Visita
             </TableHead>
-            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-300">
+            <TableHead className="px-6 py-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">
               Estado
             </TableHead>
-            <TableHead className="w-16 px-6 py-3.5 text-right font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-300">
+            <TableHead className="w-16 px-6 py-3.5 text-right font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">
               <span className="sr-only">Acciones</span>
             </TableHead>
           </TableRow>
@@ -131,7 +131,7 @@ export function PatientsTable({ patients }: PatientsTableProps) {
                   <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-100 to-emerald-100 font-mono text-xs font-semibold text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),4px_4px_10px_rgba(20,184,166,0.18)] dark:from-teal-900/40 dark:to-emerald-900/40 dark:text-teal-300"
+                        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-100 to-emerald-100 font-mono text-xs font-semibold text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),4px_4px_10px_rgba(20,184,166,0.18)] dark:from-teal-900/40 dark:to-emerald-900/40 dark:text-teal-400"
                         aria-hidden="true"
                       >
                         {patient.initials}
@@ -196,13 +196,13 @@ export function PatientsTable({ patients }: PatientsTableProps) {
                           onClick={() => handleViewProfile(patient)}
                           className="rounded-lg px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50 focus:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/60 dark:focus:bg-slate-800/60"
                         >
-                          <Eye className="size-4 text-teal-600 dark:text-teal-300" aria-hidden="true" />
+                          <Eye className="size-4 text-teal-600 dark:text-teal-400" aria-hidden="true" />
                           Ver perfil
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="rounded-lg px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50 focus:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/60 dark:focus:bg-slate-800/60"
                         >
-                          <FileText className="size-4 text-teal-600 dark:text-teal-300" aria-hidden="true" />
+                          <FileText className="size-4 text-teal-600 dark:text-teal-400" aria-hidden="true" />
                           Ver historial clínico
                         </DropdownMenuItem>
                         <DropdownMenuItem

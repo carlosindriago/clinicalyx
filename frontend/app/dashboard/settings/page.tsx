@@ -19,7 +19,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-teal-600 dark:text-teal-300">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-teal-600 dark:text-teal-400">
           Próximamente
         </p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-50">

@@ -181,7 +181,7 @@ function DemoLoadingPageInner() {
 
       <div className="relative z-10 w-full max-w-[640px] p-2">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16),inset_1px_1px_0_rgba(255,255,255,0.85)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-300">
+          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16),inset_1px_1px_0_rgba(255,255,255,0.85)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-400">
             <Activity className="size-7 stroke-[2.4]" aria-hidden="true" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-slate-50">
@@ -213,7 +213,7 @@ function DemoLoadingPageInner() {
                   className="absolute size-12 animate-ping rounded-full bg-teal-400/15 duration-2000"
                   aria-hidden="true"
                 />
-                <div className="relative flex size-16 items-center justify-center rounded-[22px] bg-[linear-gradient(145deg,#effcfb,#d8fbfa)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.18),inset_1px_1px_0_rgba(255,255,255,0.95)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-300">
+                <div className="relative flex size-16 items-center justify-center rounded-[22px] bg-[linear-gradient(145deg,#effcfb,#d8fbfa)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.18),inset_1px_1px_0_rgba(255,255,255,0.95)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-400">
                   <Activity className="size-7" aria-hidden="true" />
                 </div>
               </div>
@@ -253,7 +253,7 @@ function DemoLoadingPageInner() {
 
               <div className="grid w-full max-w-xl gap-3 pt-2 sm:grid-cols-3">
                 <div className="rounded-2xl border border-teal-100/70 bg-teal-50/70 px-4 py-3 text-left shadow-[inset_1px_1px_0_rgba(255,255,255,0.7)] dark:border-teal-900/40 dark:bg-teal-950/30">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700 dark:text-teal-300">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700 dark:text-teal-400">
                     Seguridad
                   </p>
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">

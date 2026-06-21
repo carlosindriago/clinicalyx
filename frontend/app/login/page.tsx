@@ -80,7 +80,7 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-[480px] p-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16),inset_1px_1px_0_rgba(255,255,255,0.85)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-300">
+          <div className="mb-4 flex size-14 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#d8fbfa,#97f2ec)] text-teal-600 shadow-[0_10px_30px_rgba(20,184,166,0.16),inset_1px_1px_0_rgba(255,255,255,0.85)] dark:bg-[linear-gradient(145deg,#0d3a3a,#0a2628)] dark:text-teal-400">
             <HeartPulse className="size-7 stroke-[2.4]" aria-hidden="true" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-slate-50">
@@ -155,7 +155,7 @@ export default function LoginPage() {
                   </Label>
                   <a
                     href="#"
-                    className="text-xs font-medium text-teal-600 transition-colors hover:text-teal-700 hover:underline dark:text-teal-300"
+                    className="text-xs font-medium text-teal-600 transition-colors hover:text-teal-700 hover:underline dark:text-teal-400"
                   >
                     ¿La olvidaste?
                   </a>

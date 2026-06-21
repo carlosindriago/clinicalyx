@@ -260,7 +260,7 @@ export default async function PatientsPage({ searchParams }: PatientsPageProps) 
       {/* Header */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1.5">
-          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-teal-600 dark:text-teal-300">
+          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-teal-600 dark:text-teal-400">
             Directorio Clínico
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-slate-800 dark:text-slate-50 sm:text-[2rem]">
@@ -371,7 +371,7 @@ export default async function PatientsPage({ searchParams }: PatientsPageProps) 
 
       {/* Footer note: indicación del modo cifrado */}
       <div className="flex items-center justify-center gap-2 pt-2 text-xs text-slate-500 dark:text-slate-400">
-        <ShieldCheck className="size-3.5 text-teal-600 dark:text-teal-300" aria-hidden="true" />
+        <ShieldCheck className="size-3.5 text-teal-600 dark:text-teal-400" aria-hidden="true" />
         Registros cifrados · búsqueda exacta únicamente
       </div>
     </div>

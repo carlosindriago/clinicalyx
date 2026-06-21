@@ -97,7 +97,7 @@ export function DashboardShell({ currentRole, children }: DashboardShellProps) {
                   size="icon-lg"
                   aria-label="Abrir menu de navegacion"
                   onClick={() => setIsMobileSidebarOpen(true)}
-                  className="flex rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 md:hidden dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
+                  className="flex rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 md:hidden dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
                 >
                   <Menu className="size-5" aria-hidden="true" />
                 </Button>
@@ -129,7 +129,7 @@ export function DashboardShell({ currentRole, children }: DashboardShellProps) {
                   variant="ghost"
                   size="icon-lg"
                   aria-label="Notificaciones"
-                  className="relative rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
+                  className="relative rounded-[20px] border border-white/60 bg-white/70 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_20px_rgba(135,186,196,0.16)] transition hover:bg-white/85 hover:text-teal-800 dark:border-white/8 dark:bg-slate-950/50 dark:text-teal-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),8px_8px_18px_rgba(0,0,0,0.24)] dark:hover:bg-slate-900/70"
                 >
                   <Bell className="size-5" aria-hidden="true" />
                   <span className="absolute right-3 top-3 size-2.5 rounded-full bg-[#38d9cf] ring-4 ring-white/80 dark:ring-slate-950/90" />
@@ -143,7 +143,7 @@ export function DashboardShell({ currentRole, children }: DashboardShellProps) {
           <div className="px-4 pt-4 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-3 rounded-[26px] border border-white/55 bg-white/50 px-4 py-4 shadow-[inset_1px_1px_0_rgba(255,255,255,0.92),12px_14px_28px_rgba(122,176,190,0.16)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-950/34 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),12px_14px_28px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
-                <span className="inline-flex rounded-full border border-white/60 bg-white/72 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),6px_6px_16px_rgba(130,188,198,0.14)] dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-300">
+                <span className="inline-flex rounded-full border border-white/60 bg-white/72 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),6px_6px_16px_rgba(130,188,198,0.14)] dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-400">
                   {roleLabel}
                 </span>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -161,7 +161,7 @@ export function DashboardShell({ currentRole, children }: DashboardShellProps) {
                       href={action.href}
                       className="inline-flex min-h-11 items-center gap-2 rounded-[18px] border border-white/60 bg-white/72 px-4 py-2 text-sm font-medium text-slate-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_18px_rgba(130,188,198,0.14)] transition-colors hover:bg-white/88 hover:text-teal-700 dark:border-white/8 dark:bg-slate-900/58 dark:text-slate-200 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.16)] dark:hover:bg-slate-900/78 dark:hover:text-teal-300"
                     >
-                      <Icon className="size-4 text-teal-600 dark:text-teal-300" aria-hidden="true" />
+                      <Icon className="size-4 text-teal-600 dark:text-teal-400" aria-hidden="true" />
                       <span>{action.label}</span>
                     </Link>
                   );

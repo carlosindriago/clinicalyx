@@ -37,7 +37,7 @@ export function GlobalSearch() {
       <button
         type="submit"
         disabled={isPending}
-        className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-[16px] text-teal-600 transition-colors hover:text-teal-700 disabled:opacity-50 dark:text-teal-300 dark:hover:text-teal-200"
+        className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-[16px] text-teal-600 transition-colors hover:text-teal-700 disabled:opacity-50 dark:text-teal-400 dark:hover:text-teal-200"
         aria-label="Buscar paciente"
       >
         {isPending ? (

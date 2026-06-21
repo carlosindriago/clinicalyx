@@ -115,7 +115,7 @@ type RoleWidget = {
 const badgeStyles: Record<WorklistTone, StatusStyle> = {
   teal: {
     className:
-      "border border-teal-200/80 bg-teal-50/90 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.85)] dark:border-teal-900/70 dark:bg-teal-950/60 dark:text-teal-300",
+      "border border-teal-200/80 bg-teal-50/90 text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.85)] dark:border-teal-900/70 dark:bg-teal-950/60 dark:text-teal-400",
     dot: "bg-teal-400 dark:bg-teal-300",
   },
   sky: {
@@ -225,6 +225,43 @@ const sparklinePalette: Record<
   },
 };
 
+/**
+ * Dark mode override of the sparkline palette. The base palette uses
+ * teal/sky with moderate alpha (0.20-0.22) which reads as a soft
+ * tinted gradient on the light canvas. On the dark canvas those same
+ * values feel too saturated, so we lower the alphas and shift the
+ * tone slightly so the fill and grid tracks stay subtle instead of
+ * glowing. The stroke and dot are kept identical so the data line
+ * itself remains the focal point in both themes.
+ */
+const sparklinePaletteDark: Record<
+  SparklineTone,
+  { fillStart: string; fillEnd: string; track: string }
+> = {
+  teal: {
+    fillStart: "rgba(20,184,166,0.10)",
+    fillEnd: "rgba(20,184,166,0.01)",
+    track: "rgba(15,118,110,0.05)",
+  },
+  sky: {
+    fillStart: "rgba(56,189,248,0.09)",
+    fillEnd: "rgba(56,189,248,0.01)",
+    track: "rgba(2,132,199,0.05)",
+  },
+};
+
+function resolveSparklinePalette(
+  tone: SparklineTone,
+  isDark: boolean
+) {
+  const base = sparklinePalette[tone];
+  if (!isDark) {
+    return base;
+  }
+  const override = sparklinePaletteDark[tone];
+  return { ...base, ...override };
+}
+
 function getSparklinePoints(data: number[]) {
   const width = 160;
   const height = 64;
@@ -263,7 +300,9 @@ function MiniTrendChart({
   data: number[];
   tone: SparklineTone;
 }) {
-  const palette = sparklinePalette[tone];
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const palette = resolveSparklinePalette(tone, isDark);
   const points = getSparklinePoints(data);
   const linePath = getSparklineLine(points);
   const areaPath = getSparklineArea(points);
@@ -694,7 +733,7 @@ function buildChartTooltip(rangeLabel: string, seriesLabel: string) {
         <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
           {rangeLabel} {label}
         </p>
-        <p className="mt-1 text-sm font-semibold text-teal-600 dark:text-teal-300">
+        <p className="mt-1 text-sm font-semibold text-teal-600 dark:text-teal-400">
           {String(value)} {seriesLabel}
         </p>
       </div>
@@ -763,7 +802,7 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700 dark:text-teal-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700 dark:text-teal-400">
                   {heroContent.eyebrow}
                 </p>
                 <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 xl:text-[2.35rem]">
@@ -808,7 +847,7 @@ export default function DashboardPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                     {metric.label}
                   </p>
-                  <div className="flex size-12 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#f8ffff,#d5f8f5)] text-teal-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_18px_rgba(130,188,198,0.14)] dark:bg-slate-900/80 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)]">
+                  <div className="flex size-12 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#f8ffff,#d5f8f5)] text-teal-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_18px_rgba(130,188,198,0.14)] dark:bg-slate-900/80 dark:text-teal-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)]">
                     <Icon className="size-5" aria-hidden="true" />
                   </div>
                 </div>
@@ -816,7 +855,7 @@ export default function DashboardPage() {
                   <p className="text-[2.15rem] font-bold tracking-tight text-slate-900 dark:text-slate-100">
                     {metric.value}
                   </p>
-                  <p className="pb-1 text-xs font-semibold text-teal-500 dark:text-teal-300">
+                  <p className="pb-1 text-xs font-semibold text-teal-500 dark:text-teal-400">
                     {metric.detail}
                   </p>
                 </div>
@@ -864,7 +903,7 @@ export default function DashboardPage() {
                       {widget.description}
                     </p>
                   </div>
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#f8ffff,#d5f8f5)] text-teal-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_18px_rgba(130,188,198,0.14)] dark:bg-slate-900/80 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)]">
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#f8ffff,#d5f8f5)] text-teal-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_18px_rgba(130,188,198,0.14)] dark:bg-slate-900/80 dark:text-teal-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)]">
                     <Icon className="size-5" aria-hidden="true" />
                   </div>
                 </div>
@@ -873,7 +912,7 @@ export default function DashboardPage() {
                     <p className="text-[2rem] font-bold tracking-tight text-slate-900 dark:text-slate-100">
                       {widget.value}
                     </p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-300">
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">
                       {widget.detail}
                     </p>
                   </div>
@@ -899,7 +938,7 @@ export default function DashboardPage() {
 
             <button
               type="button"
-              className="inline-flex h-11 items-center gap-2 rounded-[18px] border border-white/60 bg-white/78 px-4 text-sm font-medium text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_18px_rgba(130,188,198,0.16)] dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-300"
+              className="inline-flex h-11 items-center gap-2 rounded-[18px] border border-white/60 bg-white/78 px-4 text-sm font-medium text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_18px_rgba(130,188,198,0.16)] dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-400"
             >
               {chartContent.rangeLabel}
               <ChevronDown className="size-4" aria-hidden="true" />
@@ -973,7 +1012,7 @@ export default function DashboardPage() {
       <section className="overflow-hidden rounded-[34px] border border-white/60 bg-white/62 text-slate-900 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),18px_20px_40px_rgba(123,185,197,0.2),-12px_-12px_28px_rgba(255,255,255,0.75)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-950/45 dark:text-slate-100 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),18px_20px_38px_rgba(0,0,0,0.28)]">
         <div className="flex items-center justify-between border-b border-white/50 px-4 py-4 dark:border-white/8">
           <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#f8ffff,#d5f8f5)] text-teal-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_18px_rgba(130,188,198,0.14)] dark:bg-slate-900/80 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)]">
+            <div className="flex size-11 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#f8ffff,#d5f8f5)] text-teal-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_18px_rgba(130,188,198,0.14)] dark:bg-slate-900/80 dark:text-teal-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)]">
               <TrendingUp className="size-5" aria-hidden="true" />
             </div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -983,7 +1022,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-11 rounded-[18px] border border-white/60 bg-white/78 px-4 text-sm font-medium text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_18px_rgba(130,188,198,0.16)] hover:bg-white/90 hover:text-teal-800 dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)] dark:hover:bg-slate-900/80 dark:hover:text-teal-200"
+            className="h-11 rounded-[18px] border border-white/60 bg-white/78 px-4 text-sm font-medium text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_18px_rgba(130,188,198,0.16)] hover:bg-white/90 hover:text-teal-800 dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-400 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.22)] dark:hover:bg-slate-900/80 dark:hover:text-teal-200"
           >
             {worklistContent.actionLabel}
           </Button>
@@ -1009,7 +1048,7 @@ export default function DashboardPage() {
                   >
                     <td className="px-4 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                        <span className="text-sm font-semibold text-teal-700 dark:text-teal-400">
                           {item.primary}
                         </span>
                         <span className="text-xs text-slate-500 dark:text-slate-400">

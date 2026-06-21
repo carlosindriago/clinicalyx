@@ -184,7 +184,7 @@ export default async function AppointmentsPage({
       {/* Header */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1.5">
-          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-teal-600 dark:text-teal-300">
+          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-teal-600 dark:text-teal-400">
             Agenda Clínica
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-slate-800 dark:text-slate-50 sm:text-[2rem]">
