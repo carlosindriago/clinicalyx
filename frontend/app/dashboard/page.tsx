@@ -112,6 +112,12 @@ type RoleWidget = {
   href: string;
 };
 
+type QuickAction = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
 const badgeStyles: Record<WorklistTone, StatusStyle> = {
   teal: {
     className:
@@ -197,6 +203,48 @@ const HERO_CONTENT_BY_ROLE: Record<DemoRole, HeroContent> = {
     ctaLabel: "+ Ver reportes",
     ctaHref: "/dashboard",
   },
+};
+
+/**
+ * Acciones rápidas por rol. Migradas desde la barra intermedia
+ * del DashboardShell (que se eliminó para combatir la "fatiga de
+ * encabezados"). Se renderizan dentro del hero card, debajo del
+ * CTA principal, con estilo secundario/ghost para no competir
+ * visualmente con la llamada a la acción primaria.
+ *
+ * El doctor mantiene los dos destinos más comunes (agenda +
+ * pacientes). El recepcionista enfoca admisiones + agenda. El
+ * admin enfoca supervision + reportes.
+ */
+const QUICK_ACTIONS_BY_ROLE: Record<DemoRole, QuickAction[]> = {
+  doctor: [
+    {
+      label: "Agenda de hoy",
+      href: "/dashboard/appointments",
+      icon: CalendarDays,
+    },
+    { label: "Pacientes", href: "/dashboard/patients", icon: UsersRound },
+  ],
+  receptionist: [
+    {
+      label: "Nuevo paciente",
+      href: "/dashboard/patients/new",
+      icon: UserPlus,
+    },
+    {
+      label: "Turno actual",
+      href: "/dashboard/appointments",
+      icon: ClipboardList,
+    },
+  ],
+  admin: [
+    {
+      label: "Operacion",
+      href: "/dashboard/appointments",
+      icon: ClipboardList,
+    },
+    { label: "Metricas", href: "/dashboard", icon: BarChart3 },
+  ],
 };
 
 const sparklinePalette: Record<
@@ -791,6 +839,7 @@ export default function DashboardPage() {
     totalAppointments: upcomingAppointments.length,
   });
   const heroContent = HERO_CONTENT_BY_ROLE[currentRole];
+  const quickActions = QUICK_ACTIONS_BY_ROLE[currentRole];
   const chartContent = buildChartByRole(currentRole);
   const worklistContent = buildWorklistByRole(currentRole);
   const roleWidgets = buildWidgetsByRole(currentRole);
@@ -825,12 +874,43 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <Link
-              href={heroContent.ctaHref}
-              className="inline-flex h-12 items-center rounded-[22px] bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-5 text-sm font-semibold text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.25),12px_14px_28px_rgba(36,169,186,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 dark:bg-[linear-gradient(145deg,#18bdbb,#127e98)]"
-            >
-              {heroContent.ctaLabel}
-            </Link>
+            <div className="flex flex-col items-start gap-3 md:items-end">
+              <Link
+                href={heroContent.ctaHref}
+                className="inline-flex h-12 items-center rounded-[22px] bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-5 text-sm font-semibold text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.25),12px_14px_28px_rgba(36,169,186,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 dark:bg-[linear-gradient(145deg,#18bdbb,#127e98)]"
+              >
+                {heroContent.ctaLabel}
+              </Link>
+
+              {/*
+               * Acciones rápidas reubicadas: estaban en una barra
+               * intermedia horizontal (entre el header y el hero) que
+               * se eliminó por "fatiga de encabezados". Aquí se
+               * renderizan como ghost buttons en una fila, alineadas
+               * a la derecha (md:items-end del wrapper padre) y
+               * debajo del CTA primario. Estilo intentionally más
+               * sutil que el CTA para que la jerarquía visual se
+               * mantenga: + Nueva Cita > Quick actions.
+               */}
+              <div className="flex flex-wrap gap-2">
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Link
+                      key={action.href}
+                      href={action.href}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-[16px] border border-white/40 bg-white/55 px-3.5 py-1.5 text-xs font-medium text-slate-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),4px_4px_10px_rgba(130,188,198,0.08)] transition-colors hover:bg-white/80 hover:text-teal-700 dark:border-white/6 dark:bg-slate-900/40 dark:text-slate-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),4px_4px_10px_rgba(0,0,0,0.12)] dark:hover:bg-slate-900/60 dark:hover:text-teal-400"
+                    >
+                      <Icon
+                        className="size-4 text-teal-600 dark:text-teal-400"
+                        aria-hidden="true"
+                      />
+                      <span>{action.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </article>
 

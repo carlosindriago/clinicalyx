@@ -1,9 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import {
-  parseRoleFromAccessToken,
-  type AppRole,
-} from "@/lib/backend";
+import { parseRoleFromAccessToken } from "@/lib/backend";
 import { DashboardShell } from "./dashboard-shell";
 
 /**
@@ -11,7 +8,13 @@ import { DashboardShell } from "./dashboard-shell";
  *
  * SEGURIDAD: el rol del usuario se deriva del JWT firmado (cookie
  * access_token) en el SERVIDOR. No se lee del localStorage ni se
- * expone al cliente para que este lo manipule.
+ * expone al cliente para que este lo manipule. Se usa únicamente
+ * para decidir si se redirige a /login o se renderiza el shell.
+ *
+ * La insignia visible de rol y los quick actions del header (que
+ * antes vivían en DashboardShell) migraron a DashboardPage, que los
+ * lee del sandbox demo (localStorage) para mantener una única
+ * fuente de verdad con el resto del contenido de la página.
  *
  * El parseo NO verifica la firma (es solo decodificación de base64url
  * para extraer el claim role). La verificación criptográfica la hace
@@ -19,9 +22,6 @@ import { DashboardShell } from "./dashboard-shell";
  * un atacante que manipule el payload del JWT no escala privilegios:
  * su JWT modificado será rechazado por la verificación de firma del
  * backend en cada request.
- *
- * Si no hay token, redirige a /login (defense-in-depth: el middleware
- * también lo hace, pero el layout es la barrera final antes del render).
  */
 export default async function DashboardLayout({
   children,
@@ -36,5 +36,5 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <DashboardShell currentRole={role as AppRole}>{children}</DashboardShell>;
+  return <DashboardShell>{children}</DashboardShell>;
 }

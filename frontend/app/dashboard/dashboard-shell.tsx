@@ -1,17 +1,10 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import Link from "next/link";
 import {
-  BarChart3,
   Bell,
-  CalendarDays,
-  ClipboardList,
   Menu,
   Search,
-  UserPlus,
-  UsersRound,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Sidebar } from "@/components/app-sidebar";
@@ -19,54 +12,34 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GlobalSearch } from "@/components/global-search";
-import type { AppRole } from "@/lib/backend";
 
-type QuickAction = {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-};
-
-// Mapeo de role a etiqueta de UI y quick actions. El role viene del JWT
-// (verificado por el backend), NO del localStorage. Esto cierra el
-// vector donde un usuario podía setear localStorage a "admin" para
-// ver UI privilegiada.
-const ROLE_SHELL_LABELS: Record<AppRole, string> = {
-  SUPERADMIN: "Vista Ejecutiva",
-  DOCTOR: "Vista Clinica",
-  NURSE: "Vista Enfermeria",
-  RECEPTIONIST: "Vista Recepcion",
-};
-
-const HEADER_ACTIONS_BY_ROLE: Record<AppRole, QuickAction[]> = {
-  SUPERADMIN: [
-    { label: "Operacion", href: "/dashboard/appointments", icon: ClipboardList },
-    { label: "Metricas", href: "/dashboard", icon: BarChart3 },
-  ],
-  DOCTOR: [
-    { label: "Agenda de hoy", href: "/dashboard/appointments", icon: CalendarDays },
-    { label: "Pacientes", href: "/dashboard/patients", icon: UsersRound },
-  ],
-  NURSE: [
-    { label: "Pacientes", href: "/dashboard/patients", icon: UsersRound },
-    { label: "Agenda de hoy", href: "/dashboard/appointments", icon: CalendarDays },
-  ],
-  RECEPTIONIST: [
-    { label: "Nuevo paciente", href: "/dashboard/patients/new", icon: UserPlus },
-    { label: "Turno actual", href: "/dashboard/appointments", icon: ClipboardList },
-  ],
-};
-
+/**
+ * Shell de layout del dashboard (Client Component).
+ *
+ * Responsabilidades:
+ *   - Sidebar (móvil + desktop) y su toggle.
+ *   - Header sticky con buscador global, notificaciones y theme toggle.
+ *   - Slot children para el contenido de la página (DashboardPage, etc.).
+ *
+ * Lo que este componente NO hace (desde el refactor de "fatiga de
+ * encabezados"):
+ *   - Ya no renderiza la barra intermedia con la insignia de rol y
+ *     los botones de acciones rápidas. Esa barra era redundante con
+ *     el eyebrow del hero y empujaba las métricas hacia abajo. Los
+ *     quick actions se renderizan ahora dentro del hero card en
+ *     DashboardPage, alineados con el CTA principal.
+ *
+ * El role del usuario (derivado del JWT en el layout server-side)
+ * ya no se necesita en este shell porque la insignia de rol y los
+ * quick actions migraron a DashboardPage, que los lee del sandbox
+ * de localStorage (la misma fuente que el resto de su contenido).
+ */
 interface DashboardShellProps {
-  currentRole: AppRole;
   children: React.ReactNode;
 }
 
-export function DashboardShell({ currentRole, children }: DashboardShellProps) {
+export function DashboardShell({ children }: DashboardShellProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-
-  const quickActions = HEADER_ACTIONS_BY_ROLE[currentRole];
-  const roleLabel = ROLE_SHELL_LABELS[currentRole];
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#dff8f7_0%,#ebfbfb_42%,#f7fcfc_100%)] text-foreground dark:bg-[radial-gradient(circle_at_top,#10243c_0%,#081725_55%,#06111c_100%)]">
@@ -140,37 +113,15 @@ export function DashboardShell({ currentRole, children }: DashboardShellProps) {
             </div>
           </header>
 
-          <div className="px-4 pt-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-3 rounded-[26px] border border-white/55 bg-white/50 px-4 py-4 shadow-[inset_1px_1px_0_rgba(255,255,255,0.92),12px_14px_28px_rgba(122,176,190,0.16)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-950/34 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),12px_14px_28px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex rounded-full border border-white/60 bg-white/72 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-teal-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),6px_6px_16px_rgba(130,188,198,0.14)] dark:border-white/8 dark:bg-slate-900/60 dark:text-teal-400">
-                  {roleLabel}
-                </span>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Acciones rapidas para el flujo actual
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
-
-                  return (
-                    <Link
-                      key={action.href}
-                      href={action.href}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-[18px] border border-white/60 bg-white/72 px-4 py-2 text-sm font-medium text-slate-700 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_18px_rgba(130,188,198,0.14)] transition-colors hover:bg-white/88 hover:text-teal-700 dark:border-white/8 dark:bg-slate-900/58 dark:text-slate-200 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.16)] dark:hover:bg-slate-900/78 dark:hover:text-teal-300"
-                    >
-                      <Icon className="size-4 text-teal-600 dark:text-teal-400" aria-hidden="true" />
-                      <span>{action.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <main className="px-4 pb-8 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
+          {/*
+           * Padding-top del main elevado de pt-6/lg:pt-8 a pt-8/lg:pt-10.
+           * Antes había una barra intermedia (insignia + quick actions)
+           * entre el header y el main que actuaba como separador visual
+           * y consumia ~80px verticales. Sin esa barra, este padding
+           * adicional evita que el hero card se sienta "pegado" al
+           * header y mantiene el ritmo vertical armonioso.
+           */}
+          <main className="px-4 pb-8 pt-8 sm:px-6 lg:px-8 lg:pb-10 lg:pt-10">
             <div className="mx-auto w-full max-w-7xl">{children}</div>
           </main>
         </div>
