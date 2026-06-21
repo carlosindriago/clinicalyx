@@ -10,6 +10,7 @@ import {
   BarChart3,
   CalendarDays,
   ChevronDown,
+  Circle,
   ClipboardList,
   FileText,
   Stethoscope,
@@ -848,7 +849,26 @@ export default function DashboardPage() {
     <div className="space-y-7">
       <section className="grid gap-6 xl:grid-cols-12">
         <article className="col-span-full overflow-hidden rounded-[34px] border border-white/60 bg-white/60 p-6 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),18px_20px_40px_rgba(123,185,197,0.2),-12px_-12px_28px_rgba(255,255,255,0.75)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-950/45 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.05),18px_20px_38px_rgba(0,0,0,0.28)]">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          {/*
+           * Layout del hero card:
+           *   - Stacked vertical (text section + action bar al fondo).
+           *   - El action bar se separa del bloque de texto con un
+           *     border-top sutil para que los dos grupos visuales
+           *     queden claramente delimitados.
+           *   - Los tags se renderizan como flat list (sin bg, sin
+           *     border, sin shadow) con un pequeño Circle teal a la
+           *     izquierda de cada uno. Esto resuelve el problema de
+           *     affordance: antes parecían botones clickeables
+           *     ("Agenda priorizada", "Seguimiento activo", "Metricas
+           *     clinicas") y confundían al usuario. Ahora se leen
+           *     claramente como caracteristicas de la plataforma.
+           *   - Los 3 botones (2 secundarios + 1 primario) viven en
+           *     una sola action bar al fondo, alineados a la derecha.
+           *     Los secundarios suben de "ghost translucido" a
+           *     "solid secondary" (bg blanco + border + shadow-sm)
+           *     para que no se vean desconectados del CTA.
+           */}
+          <div className="flex flex-col gap-6">
             <div className="space-y-5">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700 dark:text-teal-400">
@@ -862,54 +882,50 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3 text-sm text-slate-600 dark:text-slate-300">
+              <div
+                role="list"
+                aria-label="Caracteristicas de la plataforma"
+                className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500 dark:text-slate-400"
+              >
                 {heroContent.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full border border-white/60 bg-white/72 px-4 py-2 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_8px_16px_rgba(130,188,198,0.14)] dark:border-white/8 dark:bg-slate-900/55"
+                    role="listitem"
+                    className="inline-flex items-center gap-2"
                   >
+                    <Circle
+                      className="size-3 fill-teal-500 text-teal-500 dark:fill-teal-400 dark:text-teal-400"
+                      aria-hidden="true"
+                    />
                     {tag}
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="flex flex-col items-start gap-3 md:items-end">
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-white/8">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-teal-700 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:shadow-[0_1px_2px_rgba(0,0,0,0.25)] dark:hover:border-white/20 dark:hover:bg-slate-700 dark:hover:text-teal-400"
+                  >
+                    <Icon
+                      className="size-4 text-teal-600 dark:text-teal-400"
+                      aria-hidden="true"
+                    />
+                    <span>{action.label}</span>
+                  </Link>
+                );
+              })}
               <Link
                 href={heroContent.ctaHref}
-                className="inline-flex h-12 items-center rounded-[22px] bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-5 text-sm font-semibold text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.25),12px_14px_28px_rgba(36,169,186,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 dark:bg-[linear-gradient(145deg,#18bdbb,#127e98)]"
+                className="inline-flex h-11 items-center rounded-[18px] bg-[linear-gradient(145deg,#25cbc9,#1da2be)] px-5 text-sm font-semibold text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.25),8px_10px_20px_rgba(36,169,186,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 dark:bg-[linear-gradient(145deg,#18bdbb,#127e98)]"
               >
                 {heroContent.ctaLabel}
               </Link>
-
-              {/*
-               * Acciones rápidas reubicadas: estaban en una barra
-               * intermedia horizontal (entre el header y el hero) que
-               * se eliminó por "fatiga de encabezados". Aquí se
-               * renderizan como ghost buttons en una fila, alineadas
-               * a la derecha (md:items-end del wrapper padre) y
-               * debajo del CTA primario. Estilo intentionally más
-               * sutil que el CTA para que la jerarquía visual se
-               * mantenga: + Nueva Cita > Quick actions.
-               */}
-              <div className="flex flex-wrap gap-2">
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
-                  return (
-                    <Link
-                      key={action.href}
-                      href={action.href}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-[16px] border border-white/40 bg-white/55 px-3.5 py-1.5 text-xs font-medium text-slate-600 shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),4px_4px_10px_rgba(130,188,198,0.08)] transition-colors hover:bg-white/80 hover:text-teal-700 dark:border-white/6 dark:bg-slate-900/40 dark:text-slate-300 dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),4px_4px_10px_rgba(0,0,0,0.12)] dark:hover:bg-slate-900/60 dark:hover:text-teal-400"
-                    >
-                      <Icon
-                        className="size-4 text-teal-600 dark:text-teal-400"
-                        aria-hidden="true"
-                      />
-                      <span>{action.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
             </div>
           </div>
         </article>
