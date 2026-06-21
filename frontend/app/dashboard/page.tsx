@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import * as React from "react";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 
 import {
   Activity,
@@ -24,6 +26,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  type TooltipContentProps,
 } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -664,8 +667,47 @@ function getAvatarLabel(value: string) {
     .toUpperCase();
 }
 
+/**
+ * Factory: produce a Recharts Tooltip component that adapts to the
+ * current theme. Returns a stable component per (rangeLabel, seriesLabel)
+ * pair so the Tooltip body uses Tailwind dark: variants instead of the
+ * Recharts default which always paints white-on-white. The previous
+ * version hardcoded backgroundColor: "rgba(255, 255, 255, 0.92)" and
+ * did not set a `color` property, so the text inherited currentColor
+ * from the dark parent (slate-100) and became invisible.
+ */
+function buildChartTooltip(rangeLabel: string, seriesLabel: string) {
+  function ChartTooltip({
+    active,
+    payload,
+    label,
+  }: TooltipContentProps<number, string>) {
+    if (!active || !payload?.length) {
+      return null;
+    }
+
+    const firstPayload = payload[0];
+    const value = firstPayload?.value;
+
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_10px_25px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-900/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.45)]">
+        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+          {rangeLabel} {label}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-teal-600 dark:text-teal-300">
+          {String(value)} {seriesLabel}
+        </p>
+      </div>
+    );
+  }
+
+  return ChartTooltip;
+}
+
 export default function DashboardPage() {
   const [currentRole, setCurrentRole] = useState<DemoRole>("doctor");
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   useEffect(() => {
     const syncRoleFromStorage = () => {
@@ -873,20 +915,47 @@ export default function DashboardPage() {
                     <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#64748b" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b" }} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "1px solid #e2e8f0",
-                    backgroundColor: "rgba(255, 255, 255, 0.92)",
-                    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.08)",
-                    padding: "12px 16px",
-                  }}
-                  formatter={(value) => [`${value}`, chartContent.seriesLabel]}
-                  labelFormatter={(label) => `${chartContent.rangeLabel} ${label}`}
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={isDark ? "rgba(148, 163, 184, 0.14)" : "#f1f5f9"}
+                  vertical={false}
                 />
+                <XAxis
+                  dataKey="label"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: isDark ? "#94a3b8" : "#64748b", fontSize: 12 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: isDark ? "#94a3b8" : "#64748b", fontSize: 12 }}
+                  width={36}
+                />
+                {(() => {
+                  const ChartTooltip = buildChartTooltip(
+                    chartContent.rangeLabel,
+                    chartContent.seriesLabel
+                  );
+                  // Recharts infers Tooltip generics from the payload/data,
+                  // not from a manual <number, string> annotation. The cast
+                  // below is the documented escape hatch for v3 — the
+                  // structural shape of the payload matches what ChartTooltip
+                  // expects (TooltipContentProps<number, string>).
+                  return (
+                    <Tooltip
+                      cursor={{
+                        stroke: isDark
+                          ? "rgba(148, 163, 184, 0.25)"
+                          : "rgba(15, 23, 42, 0.12)",
+                        strokeWidth: 1,
+                      }}
+                      content={((props: TooltipContentProps<number, string>) => (
+                        <ChartTooltip {...props} />
+                      )) as unknown as React.ComponentProps<typeof Tooltip>["content"]}
+                    />
+                  );
+                })()}
                 <Area
                   type="monotone"
                   dataKey="value"
