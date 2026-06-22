@@ -31,6 +31,10 @@ import {
 } from "recharts";
 
 import { Button } from "@/components/ui/button";
+import {
+  KpiSparkline,
+  type KpiSparklineTone,
+} from "@/components/kpi-sparkline";
 import { cn } from "@/lib/utils";
 
 type AppointmentStatus = "Programado" | "En progreso";
@@ -40,7 +44,7 @@ type StatusStyle = {
   dot: string;
 };
 
-type SparklineTone = "teal" | "sky";
+type SparklineTone = KpiSparklineTone;
 
 type MetricContextItem = {
   label: string;
@@ -247,177 +251,6 @@ const QUICK_ACTIONS_BY_ROLE: Record<DemoRole, QuickAction[]> = {
     { label: "Metricas", href: "/dashboard", icon: BarChart3 },
   ],
 };
-
-const sparklinePalette: Record<
-  SparklineTone,
-  {
-    stroke: string;
-    dot: string;
-    fillStart: string;
-    fillEnd: string;
-    track: string;
-  }
-> = {
-  teal: {
-    stroke: "#0f766e",
-    dot: "#14b8a6",
-    fillStart: "rgba(20,184,166,0.22)",
-    fillEnd: "rgba(20,184,166,0.02)",
-    track: "rgba(15,118,110,0.08)",
-  },
-  sky: {
-    stroke: "#0284c7",
-    dot: "#38bdf8",
-    fillStart: "rgba(56,189,248,0.2)",
-    fillEnd: "rgba(56,189,248,0.02)",
-    track: "rgba(2,132,199,0.08)",
-  },
-};
-
-/**
- * Dark mode override of the sparkline palette. The base palette uses
- * teal/sky with moderate alpha (0.20-0.22) which reads as a soft
- * tinted gradient on the light canvas. On the dark canvas those same
- * values feel too saturated, so we lower the alphas and shift the
- * tone slightly so the fill and grid tracks stay subtle instead of
- * glowing. The stroke and dot are kept identical so the data line
- * itself remains the focal point in both themes.
- */
-const sparklinePaletteDark: Record<
-  SparklineTone,
-  { fillStart: string; fillEnd: string; track: string }
-> = {
-  teal: {
-    fillStart: "rgba(20,184,166,0.10)",
-    fillEnd: "rgba(20,184,166,0.01)",
-    track: "rgba(15,118,110,0.05)",
-  },
-  sky: {
-    fillStart: "rgba(56,189,248,0.09)",
-    fillEnd: "rgba(56,189,248,0.01)",
-    track: "rgba(2,132,199,0.05)",
-  },
-};
-
-function resolveSparklinePalette(
-  tone: SparklineTone,
-  isDark: boolean
-) {
-  const base = sparklinePalette[tone];
-  if (!isDark) {
-    return base;
-  }
-  const override = sparklinePaletteDark[tone];
-  return { ...base, ...override };
-}
-
-function getSparklinePoints(data: number[]) {
-  const width = 160;
-  const height = 64;
-  const padding = 6;
-  const maxValue = Math.max(...data);
-  const minValue = Math.min(...data);
-  const range = maxValue - minValue || 1;
-
-  return data.map((value, index) => {
-    const x = padding + (index / (data.length - 1)) * (width - padding * 2);
-    const y =
-      height - padding - ((value - minValue) / range) * (height - padding * 2);
-
-    return { x, y };
-  });
-}
-
-function getSparklineLine(points: Array<{ x: number; y: number }>) {
-  return points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-}
-
-function getSparklineArea(points: Array<{ x: number; y: number }>) {
-  const line = getSparklineLine(points);
-  const firstPoint = points[0];
-  const lastPoint = points[points.length - 1];
-
-  return `${line} L ${lastPoint.x} 64 L ${firstPoint.x} 64 Z`;
-}
-
-function MiniTrendChart({
-  data,
-  tone,
-}: {
-  data: number[];
-  tone: SparklineTone;
-}) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-  const palette = resolveSparklinePalette(tone, isDark);
-  const points = getSparklinePoints(data);
-  const linePath = getSparklineLine(points);
-  const areaPath = getSparklineArea(points);
-  const lastPoint = points[points.length - 1];
-
-  return (
-    <div className="mt-5 rounded-[22px] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(240,249,255,0.78)_100%)] px-3 py-3 shadow-[inset_1px_1px_0_rgba(255,255,255,0.95),8px_10px_20px_rgba(130,188,198,0.12)] dark:border-white/8 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.5)_0%,rgba(15,23,42,0.68)_100%)] dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.04),8px_10px_18px_rgba(0,0,0,0.18)]">
-      <svg
-        viewBox="0 0 160 64"
-        className="h-16 w-full"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient
-            id={`sparkline-fill-${tone}`}
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-          >
-            <stop offset="0%" stopColor={palette.fillStart} />
-            <stop offset="100%" stopColor={palette.fillEnd} />
-          </linearGradient>
-        </defs>
-
-        {[18, 36, 54].map((lineY) => (
-          <line
-            key={lineY}
-            x1="0"
-            x2="160"
-            y1={lineY}
-            y2={lineY}
-            stroke={palette.track}
-            strokeDasharray="3 4"
-          />
-        ))}
-
-        <path
-          d={areaPath}
-          fill={`url(#sparkline-fill-${tone})`}
-        />
-        <path
-          d={linePath}
-          fill="none"
-          stroke={palette.stroke}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle
-          cx={lastPoint.x}
-          cy={lastPoint.y}
-          r="4"
-          fill="#ffffff"
-          stroke={palette.dot}
-          strokeWidth="2.5"
-        />
-      </svg>
-      <div className="mt-2 flex items-center justify-between text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
-        <span>Tendencia</span>
-        <span>7 dias</span>
-      </div>
-    </div>
-  );
-}
 
 function isDemoRole(value: unknown): value is DemoRole {
   return (
@@ -955,8 +788,11 @@ export default function DashboardPage() {
                     {metric.detail}
                   </p>
                 </div>
-                {metric.trend && metric.tone ? (
-                  <MiniTrendChart data={metric.trend} tone={metric.tone} />
+                {metric.trend ? (
+                  <KpiSparkline
+                    data={metric.trend.map((value) => ({ val: value }))}
+                    tone={metric.tone ?? "teal"}
+                  />
                 ) : null}
                 {metric.context ? (
                   <div className="mt-5 grid grid-cols-2 gap-3">
